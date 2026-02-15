@@ -1,4 +1,4 @@
-import { Schema, model} from 'mongoose';
+import { Schema, model } from 'mongoose';
 import type { IUser } from '../interfaces/user.interface';
 
 const DEFAULT_FAVORITES = [
@@ -6,12 +6,14 @@ const DEFAULT_FAVORITES = [
   'AVAXUSDT','DOTUSDT', 'LINKUSDT','TRXUSDT','ATOMUSDT','LTCUSDT','ETCUSDT'
 ];
 
-const UserSchema = new Schema({
-  username: { type: String, required: true, unique: true, index: true },
-  email: { type: String, required: true, unique: true, index: true },
-  passwordHash: { type: String, required: true },
-  favorites: { type: [String], default: () => DEFAULT_FAVORITES },
-  createdAt: { type: Date, default: Date.now }
-});
+const UserSchema = new Schema(
+  {
+    username: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },
+    passwordHash: { type: String, required: true },
+    favorites: { type: [String], default: () => DEFAULT_FAVORITES }
+  },
+  { timestamps: true }
+);
 
 export const UserModel = model<IUser>('User', UserSchema);
