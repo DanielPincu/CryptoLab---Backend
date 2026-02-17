@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { latestPrices } from '../../websocket/finnhub.websocket';
+import { fetchBinanceSymbols } from './market.services';
 
 export async function getLatest(_req: Request, res: Response) {
   if (latestPrices.size === 0) {
@@ -37,4 +38,21 @@ export async function getLatestBySymbol(req: Request, res: Response) {
     price: v.price,
     marketTimestamp: new Date(v.marketTimestamp)
   });
+  
+}
+
+export async function getBinanceSymbols(_req: Request, res: Response) {
+  try {
+    const symbols = await fetchBinanceSymbols();
+
+    // Keep only USDT pairs (e.g. BINANCE:BTCUSDT)
+    const usdtOnly = Array.isArray(symbols)
+      ? symbols.filter((s: any) => typeof s?.symbol === 'string' && s.symbol.endsWith('USDT'))
+      : [];
+
+    res.json(usdtOnly);
+  } catch (err) {
+    console.error('Failed to fetch Binance symbols:', err);
+    res.status(502).json({ error: 'Failed to fetch symbols from Finnhub' });
+  }
 }
