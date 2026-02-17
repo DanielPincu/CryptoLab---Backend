@@ -1,8 +1,17 @@
 import type { Request, Response } from 'express';
-import { MarketLatestModel } from '../../models/marketLatest.model';
+import { latestPrices } from '../../websocket/finnhub.websocket';
 
-export async function getLatest(req: Request, res: Response) {
-  const data = await MarketLatestModel.find().lean();
+export async function getLatest(_req: Request, res: Response) {
+  if (latestPrices.size === 0) {
+    return res.status(503).json({ error: 'Live feed not ready yet' });
+  }
+
+  const data = Array.from(latestPrices.entries()).map(([symbol, v]) => ({
+    symbol,
+    price: v.price,
+    marketTimestamp: new Date(v.marketTimestamp)
+  }));
+
   res.json(data);
 }
 
@@ -18,10 +27,14 @@ export async function getLatestBySymbol(req: Request, res: Response) {
     symbol = `${symbol}USDT`;
   }
 
-  const doc = await MarketLatestModel.findOne({ symbol }).lean();
-  if (!doc) {
-    return res.status(404).json({ error: 'symbol not found' });
+  const v = latestPrices.get(symbol);
+  if (!v) {
+    return res.status(404).json({ error: 'symbol not found (not streamed yet)' });
   }
 
-  res.json(doc);
+  res.json({
+    symbol,
+    price: v.price,
+    marketTimestamp: new Date(v.marketTimestamp)
+  });
 }
