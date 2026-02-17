@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { latestPrices } from '../../websocket/finnhub.websocket';
 import { fetchBinanceSymbols } from './market.services';
+import type { IMarketTick } from '../../interfaces/marketTick.interface';
 import type { IMarketLatest } from '../../interfaces/marketLatest.interface';
 
 export async function getLatest(_req: Request, res: Response) {
@@ -8,10 +9,9 @@ export async function getLatest(_req: Request, res: Response) {
     return res.status(503).json({ error: 'Live feed not ready yet' });
   }
 
-  const data: IMarketLatest[] = Array.from(latestPrices.entries()).map(([symbol, v]) => ({
+  const data: IMarketTick[] = Array.from(latestPrices.entries()).map(([symbol, tick]) => ({
     symbol,
-    price: typeof v.price === 'number' ? v.price : null,
-    marketTimestamp: typeof v.marketTimestamp === 'number' ? v.marketTimestamp : null
+    price: typeof tick.price === 'number' ? tick.price : null
   }));
 
   res.json(data);
@@ -29,15 +29,14 @@ export async function getLatestBySymbol(req: Request, res: Response) {
     symbol = `${symbol}USDT`;
   }
 
-  const v = latestPrices.get(symbol);
-  if (!v) {
+  const tick = latestPrices.get(symbol);
+  if (!tick) {
     return res.status(404).json({ error: 'symbol not found (not streamed yet)' });
   }
 
-  const result: IMarketLatest = {
+  const result: IMarketTick = {
     symbol,
-    price: typeof v.price === 'number' ? v.price : null,
-    marketTimestamp: typeof v.marketTimestamp === 'number' ? v.marketTimestamp : null
+    price: typeof tick.price === 'number' ? tick.price : null
   };
 
   res.json(result);
@@ -48,8 +47,10 @@ export async function getBinanceSymbols(_req: Request, res: Response) {
     const symbols = await fetchBinanceSymbols();
 
     // Keep only USDT pairs (e.g. BINANCE:BTCUSDT)
-    const usdtOnly = Array.isArray(symbols)
-      ? symbols.filter((s: any) => typeof s?.symbol === 'string' && s.symbol.endsWith('USDT'))
+    const usdtOnly: IMarketLatest[] = Array.isArray(symbols)
+      ? (symbols as IMarketLatest[]).filter(
+          (s) => typeof s.symbol === 'string' && s.symbol.endsWith('USDT')
+        )
       : [];
 
     res.json(usdtOnly);
