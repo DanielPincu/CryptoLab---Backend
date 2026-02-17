@@ -1,16 +1,17 @@
 import type { Request, Response } from 'express';
 import { latestPrices } from '../../websocket/finnhub.websocket';
 import { fetchBinanceSymbols } from './market.services';
+import type { IMarketLatest } from '../../interfaces/marketLatest.interface';
 
 export async function getLatest(_req: Request, res: Response) {
   if (latestPrices.size === 0) {
     return res.status(503).json({ error: 'Live feed not ready yet' });
   }
 
-  const data = Array.from(latestPrices.entries()).map(([symbol, v]) => ({
+  const data: IMarketLatest[] = Array.from(latestPrices.entries()).map(([symbol, v]) => ({
     symbol,
-    price: v.price,
-    marketTimestamp: new Date(v.marketTimestamp)
+    price: typeof v.price === 'number' ? v.price : null,
+    marketTimestamp: typeof v.marketTimestamp === 'number' ? v.marketTimestamp : null
   }));
 
   res.json(data);
@@ -33,12 +34,13 @@ export async function getLatestBySymbol(req: Request, res: Response) {
     return res.status(404).json({ error: 'symbol not found (not streamed yet)' });
   }
 
-  res.json({
+  const result: IMarketLatest = {
     symbol,
-    price: v.price,
-    marketTimestamp: new Date(v.marketTimestamp)
-  });
-  
+    price: typeof v.price === 'number' ? v.price : null,
+    marketTimestamp: typeof v.marketTimestamp === 'number' ? v.marketTimestamp : null
+  };
+
+  res.json(result);
 }
 
 export async function getBinanceSymbols(_req: Request, res: Response) {
