@@ -1,5 +1,4 @@
 import { Router } from 'express';
-
 import marketRoutes from '../modules/market/market.routes';
 import authRoutes from '../modules/auth/auth.routes';
 import { requireAuth } from '../middleware/requireAuth.middleware';

@@ -1,17 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserModel } from '../models/user.model';
-import dotenvFlow from 'dotenv-flow';
+import { env } from '../config/env';
 
-dotenvFlow.config();
-
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing required env var: ${name}`);
-  return v;
-}
-
-const JWT_SECRET = required('JWT_SECRET');
+const JWT_SECRET = env.JWT_SECRET;
 
 type JwtPayload = {
   sub: string; // user id

@@ -2,21 +2,12 @@
 import WebSocket, { WebSocketServer, type RawData } from 'ws';
 import type { Server as HttpServer } from 'http';
 
-// Load environment variables from .env files (dotenv-flow supports env variants)
-import dotenvFlow from 'dotenv-flow';
-dotenvFlow.config();
+import { env } from '../config/env';
 
-// Helper to fail fast when required environment variables are missing
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing required env var: ${name}`);
-  return v;
-}
 
 // Finnhub API key and list of symbols to subscribe to on startup
-// SYMBOLS comes from process.env.SYMBOLS (comma-separated)
-const FINNHUB_API_KEY = required('FINNHUB_API_KEY');
-const SYMBOLS = (process.env.SYMBOLS?.split(',') || []).map((s) => s.trim()).filter((s) => s.length > 0);
+const FINNHUB_API_KEY = env.FINNHUB_API_KEY;
+const SYMBOLS = env.SYMBOLS;
 
 // Minimal shape of Finnhub trade messages we care about
 type FinnhubTradeMsg = {
