@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import marketRoutes from '../modules/market/market.routes';
+import authRoutes from '../modules/auth/auth.routes';
 
 const router = Router();
 
@@ -11,5 +12,6 @@ router.get('/ok', (_req, res) => {
 
 // Modules
 router.use('/market', marketRoutes);
+router.use('/user', authRoutes);
 
 export default router;

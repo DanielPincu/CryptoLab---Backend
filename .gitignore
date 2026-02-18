@@ -29,3 +29,4 @@ coverage/
 # Optional caches
 .cache/
 .npm/
+.DS_Store
