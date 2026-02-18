@@ -11,7 +11,10 @@ export async function registerUser(input: { username: string; email: string; pas
   const passwordHash = await bcrypt.hash(input.password, 12);
   const user = await UserModel.create({ username: input.username, email: input.email, passwordHash });
 
-  await AccountModel.create({ userId: user._id, cashBalance: env.STARTING_CASH, baseCurrency: 'USD' });
+  await AccountModel.create({
+    userId: user._id,
+    cashBalance: env.STARTING_CASH
+  });
 
   const token = jwt.sign(
     { sub: String(user._id) },

@@ -4,6 +4,5 @@ export interface IUser {
   username: string;
   email: string;
   passwordHash: string;
-  favorites: string[];
   createdAt: Date;
 }
