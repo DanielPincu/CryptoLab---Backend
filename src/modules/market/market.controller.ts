@@ -1,9 +1,10 @@
 import type { Request, Response } from 'express';
-import { latestPrices } from '../../websocket/finnhub.websocket';
+import { latestPrices, isFinnhubLive } from '../../websocket/finnhub.websocket';
 import { fetchBinanceSymbols, getQuote, fetchBinanceHistory } from './market.services';
 import type { IMarketTick } from '../../interfaces/marketTick.interface';
 import type { IMarketLatest } from '../../interfaces/marketLatest.interface';
 import { AccountModel } from '../../models/account.model';
+import { MarketBackupModel } from '../../models/marketBackup.model';
 
 export async function getLatest(req: Request, res: Response) {
   try {
@@ -23,15 +24,31 @@ export async function getLatest(req: Request, res: Response) {
       return res.json([]);
     }
 
+    if (isFinnhubLive()) {
+      const data: IMarketTick[] = favorites.map((symbol) => {
+        const tick = latestPrices.get(symbol);
+        return {
+          symbol,
+          price: typeof tick?.price === 'number' ? tick.price : null
+        };
+      });
+
+      return res.json(data);
+    }
+
+    // Fallback to Mongo backup when Finnhub is down
+    const backups = await MarketBackupModel.find({ symbol: { $in: favorites } }).lean();
+    const backupMap = new Map(backups.map((b: any) => [String(b.symbol).toUpperCase(), b]));
+
     const data: IMarketTick[] = favorites.map((symbol) => {
-      const tick = latestPrices.get(symbol);
+      const b = backupMap.get(symbol);
       return {
         symbol,
-        price: typeof tick?.price === 'number' ? tick.price : null
+        price: typeof b?.price === 'number' ? b.price : null
       };
     });
 
-    res.json(data);
+    return res.json(data);
   } catch (err) {
     console.error('Failed to load latest prices:', err);
     res.status(500).json({ error: 'Failed to load latest prices' });
