@@ -136,9 +136,9 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
   function broadcast(payload: { symbol: string; price: number; time: number }) {
     const msg = JSON.stringify(payload);
     wss.clients.forEach((c: WebSocket) => {
-      if (c.readyState !== WebSocket.OPEN) return;
-      const subs = clientSubs.get(c);
-      if (!subs || subs.has(payload.symbol)) c.send(msg);
+      if (c.readyState === WebSocket.OPEN) {
+        c.send(msg);
+      }
     });
   }
 
