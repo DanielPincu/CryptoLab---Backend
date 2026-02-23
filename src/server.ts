@@ -21,12 +21,11 @@ export async function startServer() {
 
     const server = http.createServer(app);
 
-    // Attach Finnhub + client WebSocket server to the same HTTP server
-    attachFinnhubAndClientWS(server);
-
     const PORT = env.PORT;
     server.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
+      // Attach Finnhub + client WebSocket server to the same HTTP server
+      attachFinnhubAndClientWS(server);
     });
   } catch (err) {
     console.error('Server startup failed:', err);

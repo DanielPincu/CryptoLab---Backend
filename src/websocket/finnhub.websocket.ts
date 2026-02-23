@@ -3,11 +3,25 @@ import WebSocket, { WebSocketServer, type RawData } from 'ws';
 import type { Server as HttpServer } from 'http';
 
 import { env } from '../config/env';
+import { AccountModel } from '../models/account.model';
 
+// --- Helpers ---
+function normalizeSymbol(s: string) {
+  return String(s || '').replace(/^BINANCE:/i, '').toUpperCase().trim();
+}
 
-// Finnhub API key and list of symbols to subscribe to on startup
+const uniqNorm = (arr: string[] = []) =>
+  Array.from(new Set(arr.map(normalizeSymbol))).filter(Boolean);
+
+// --- State ---
+const userSockets = new Map<string, WebSocket>();
+export const latestPrices = new Map<string, { price: number; marketTimestamp: number }>();
+
+let finnhubGlobal: WebSocket | null = null;
+const pendingUpstreamSubs = new Set<string>();
+
+// Finnhub API key
 const FINNHUB_API_KEY = env.FINNHUB_API_KEY;
-const SYMBOLS = env.SYMBOLS;
 
 // Minimal shape of Finnhub trade messages we care about
 type FinnhubTradeMsg = {
@@ -15,132 +29,178 @@ type FinnhubTradeMsg = {
   data?: Array<{ s: string; p: number; t: number }>;
 };
 
-// In-memory cache of the latest price per symbol (live snapshot for REST endpoints)
-export const latestPrices = new Map<string, { price: number; marketTimestamp: number }>();
+// --- Exported helpers ---
+export function registerUserSocket(userId: string, ws: WebSocket, favorites?: string[]) {
+  userSockets.set(userId, ws);
 
-// Default client subscriptions (normalized symbols without BINANCE: prefix)
-const DEFAULT_SUBS = new Set<string>(
-  SYMBOLS.map((s) => String(s).replace('BINANCE:', ''))
-);
+  if (Array.isArray(favorites) && favorites.length) {
+    const syms = uniqNorm(favorites);
+    notifyUpstreamFavoritesChange({ subscribe: syms });
+    ws.send(JSON.stringify({ type: 'subscribe', symbols: syms }));
+  }
+}
 
-// Attaches a WebSocket server for clients and connects to Finnhub upstream
-// - Clients receive real-time price updates
-// - Finnhub provides the live trade feed
+export function unregisterUserSocket(userId: string) {
+  userSockets.delete(userId);
+}
+
+export function notifyUserFavoritesChange(
+  userId: string,
+  opts: { subscribe?: string[]; unsubscribe?: string[] }
+) {
+  const ws = userSockets.get(userId);
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+  const subs = uniqNorm(opts.subscribe);
+  const unsubs = uniqNorm(opts.unsubscribe);
+
+  if (subs.length) ws.send(JSON.stringify({ type: 'subscribe', symbols: subs }));
+  if (unsubs.length) ws.send(JSON.stringify({ type: 'unsubscribe', symbols: unsubs }));
+}
+
+export function notifyUpstreamFavoritesChange(
+  opts: { subscribe?: string[]; unsubscribe?: string[] }
+) {
+  const subs = uniqNorm(opts.subscribe);
+  const unsubs = uniqNorm(opts.unsubscribe);
+
+  // If upstream not ready, queue desired subscriptions
+  if (!finnhubGlobal || finnhubGlobal.readyState !== WebSocket.OPEN) {
+    subs.forEach((s) => pendingUpstreamSubs.add(s));
+    unsubs.forEach((s) => pendingUpstreamSubs.delete(s));
+    return;
+  }
+
+  subs.forEach((symbol) => {
+    finnhubGlobal!.send(JSON.stringify({ type: 'subscribe', symbol: `BINANCE:${symbol}` }));
+  });
+
+  unsubs.forEach((symbol) => {
+    finnhubGlobal!.send(JSON.stringify({ type: 'unsubscribe', symbol: `BINANCE:${symbol}` }));
+  });
+}
+
+export function subscribeFavoritesOnLogin(favorites: string[]) {
+  const syms = uniqNorm(favorites);
+  if (!syms.length) return;
+  notifyUpstreamFavoritesChange({ subscribe: syms });
+}
+
+// --- WS attach ---
 export function attachFinnhubAndClientWS(server: HttpServer) {
   const wss = new WebSocketServer({ server });
-
-  // Tracks per-client symbol subscriptions (each client can subscribe/unsubscribe)
   const clientSubs = new Map<WebSocket, Set<string>>();
 
-  // Handle new client connections and initialize their default subscriptions
   wss.on('connection', (client: WebSocket) => {
-    // Default subscriptions for new connections
-    clientSubs.set(client, new Set(DEFAULT_SUBS));
-    client.send(JSON.stringify({ type: 'info', message: 'connected', defaults: Array.from(DEFAULT_SUBS) }));
+    clientSubs.set(client, new Set());
+    client.send(JSON.stringify({ type: 'info', message: 'connected' }));
 
-    // Handle client subscription commands: subscribe / unsubscribe / set
+    // Optional userId + favorites via query
+    try {
+      const url = new URL((client as any).url || '', 'http://localhost');
+      const userId = url.searchParams.get('userId');
+      const favsParam = url.searchParams.get('favorites');
+      const favorites = favsParam ? uniqNorm(favsParam.split(',')) : undefined;
+      if (userId) registerUserSocket(userId, client, favorites);
+    } catch {}
+
     client.on('message', (raw) => {
       let msg: any;
       try { msg = JSON.parse(raw.toString()); } catch { return; }
 
       if (msg?.type === 'subscribe' && Array.isArray(msg.symbols)) {
         const set = clientSubs.get(client) ?? new Set<string>();
-        msg.symbols.forEach((s: string) => set.add(String(s).replace('BINANCE:', '')));
+        uniqNorm(msg.symbols).forEach((s) => set.add(s));
         clientSubs.set(client, set);
       }
 
       if (msg?.type === 'unsubscribe' && Array.isArray(msg.symbols)) {
         const set = clientSubs.get(client) ?? new Set<string>();
-        msg.symbols.forEach((s: string) => set.delete(String(s).replace('BINANCE:', '')));
+        uniqNorm(msg.symbols).forEach((s) => set.delete(s));
         clientSubs.set(client, set);
       }
 
       if (msg?.type === 'set' && Array.isArray(msg.symbols)) {
-        const set: Set<string> = new Set(
-          msg.symbols.map((s: string) => String(s).replace('BINANCE:', ''))
-        );
-        clientSubs.set(client, set);
+        clientSubs.set(client, new Set(uniqNorm(msg.symbols)));
       }
     });
 
-    // Cleanup when a client disconnects
     client.on('close', () => {
+      for (const [uid, ws] of userSockets.entries()) {
+        if (ws === client) userSockets.delete(uid);
+      }
       clientSubs.delete(client);
     });
   });
 
-  let finnhub: WebSocket | null = null;
-
-  // Broadcast a price update to all connected clients that are subscribed to the symbol
   function broadcast(payload: { symbol: string; price: number; time: number }) {
     const msg = JSON.stringify(payload);
     wss.clients.forEach((c: WebSocket) => {
       if (c.readyState !== WebSocket.OPEN) return;
       const subs = clientSubs.get(c);
-      if (!subs || subs.has(payload.symbol)) {
-        c.send(msg);
-      }
+      if (!subs || subs.has(payload.symbol)) c.send(msg);
     });
   }
 
-  // Connects to Finnhub WebSocket and manages lifecycle (open, message, close, error)
-  // Guard prevents multiple parallel connections
   function connectFinnhub() {
-    if (finnhub && finnhub.readyState === WebSocket.OPEN) return;
+    if (finnhubGlobal && finnhubGlobal.readyState === WebSocket.OPEN) return;
 
     console.log('Connecting to Finnhub WS...');
-    finnhub = new WebSocket(`wss://ws.finnhub.io?token=${FINNHUB_API_KEY}`);
+    finnhubGlobal = new WebSocket(`wss://ws.finnhub.io?token=${FINNHUB_API_KEY}`);
 
-    // Subscribe to all configured symbols once connected to Finnhub
-    finnhub.on('open', () => {
+    finnhubGlobal.on('open', async () => {
       console.log('Connected to Finnhub');
-      SYMBOLS.forEach((symbol) => {
-        finnhub?.send(JSON.stringify({ type: 'subscribe', symbol }));
-      });
-    });
 
-    // Process incoming Finnhub messages: ignore pings, handle trade ticks
-    // Update in-memory latestPrices and broadcast to clients
-    finnhub.on('message', async (data: RawData) => {
-      let msg: FinnhubTradeMsg;
+      // Rehydrate upstream subscriptions from DB on server start/restart
       try {
-        msg = JSON.parse(data.toString());
-      } catch {
-        return;
+        const accounts = await AccountModel.find({ favorites: { $exists: true, $ne: [] } })
+          .select('favorites')
+          .lean();
+
+        const allFavs = accounts.flatMap((a: any) => uniqNorm(a.favorites ?? []));
+        const unique = Array.from(new Set(allFavs));
+
+        unique.forEach((symbol) => {
+          finnhubGlobal!.send(JSON.stringify({ type: 'subscribe', symbol: `BINANCE:${symbol}` }));
+        });
+      } catch (e) {
+        console.error('Failed to rehydrate Finnhub subscriptions from DB:', e);
       }
 
+      // Flush queued subscriptions
+      pendingUpstreamSubs.forEach((symbol) => {
+        finnhubGlobal!.send(JSON.stringify({ type: 'subscribe', symbol: `BINANCE:${symbol}` }));
+      });
+      pendingUpstreamSubs.clear();
+    });
+
+    finnhubGlobal.on('message', (data: RawData) => {
+      let msg: FinnhubTradeMsg;
+      try { msg = JSON.parse(data.toString()); } catch { return; }
       if (msg.type === 'ping') return;
 
       if (msg.type === 'trade' && Array.isArray(msg.data)) {
         for (const t of msg.data) {
-          const symbol = String(t.s).replace('BINANCE:', '');
+          const symbol = normalizeSymbol(t.s);
           const price = Number(t.p);
-          const marketTs = new Date(Number(t.t));
+          const marketTs = Number(t.t);
 
-          // Update live in-memory snapshot
-          latestPrices.set(symbol, {
-            price,
-            marketTimestamp: marketTs.getTime()
-          });
-
-          broadcast({ symbol, price, time: marketTs.getTime() });
+          latestPrices.set(symbol, { price, marketTimestamp: marketTs });
+          broadcast({ symbol, price, time: marketTs });
         }
       }
     });
 
-    // Reconnect with a fixed delay to avoid hammering Finnhub (handles 429/backoff)
-    finnhub.on('close', () => {
+    finnhubGlobal.on('close', () => {
       console.log('Finnhub WS closed. Reconnecting in 120s...');
       setTimeout(connectFinnhub, 120_000);
     });
 
-    // Log errors and force close to trigger reconnect via the close handler
-    finnhub.on('error', (err: Error) => {
+    finnhubGlobal.on('error', (err: Error) => {
       console.error('Finnhub WS error:', err.message);
-      try { finnhub?.close(); } catch {}
+      try { finnhubGlobal?.close(); } catch {}
     });
   }
 
-  // Kick off the initial Finnhub connection on server startup
   connectFinnhub();
 }

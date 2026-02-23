@@ -3,54 +3,85 @@ import { latestPrices } from '../../websocket/finnhub.websocket';
 import { fetchBinanceSymbols, getQuote, fetchBinanceHistory } from './market.services';
 import type { IMarketTick } from '../../interfaces/marketTick.interface';
 import type { IMarketLatest } from '../../interfaces/marketLatest.interface';
+import { AccountModel } from '../../models/account.model';
 
-export async function getLatest(_req: Request, res: Response) {
-  if (latestPrices.size === 0) {
-    return res.status(503).json({ error: 'Live feed not ready yet' });
+export async function getLatest(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const account = await AccountModel.findOne({ userId }).lean();
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const favorites = (account.favorites ?? []).map((s) => String(s).toUpperCase());
+
+    if (favorites.length === 0) {
+      return res.json([]);
+    }
+
+    const data: IMarketTick[] = favorites.map((symbol) => {
+      const tick = latestPrices.get(symbol);
+      return {
+        symbol,
+        price: typeof tick?.price === 'number' ? tick.price : null
+      };
+    });
+
+    res.json(data);
+  } catch (err) {
+    console.error('Failed to load latest prices:', err);
+    res.status(500).json({ error: 'Failed to load latest prices' });
   }
-
-  const data: IMarketTick[] = Array.from(latestPrices.entries()).map(([symbol, tick]) => ({
-    symbol,
-    price: typeof tick.price === 'number' ? tick.price : null
-  }));
-
-  res.json(data);
 }
 
 export async function getLatestBySymbol(req: Request, res: Response) {
-  let symbol = String(req.params.symbol || '').toUpperCase().trim();
-
-  if (!symbol) {
-    return res.status(400).json({ error: 'symbol is required' });
-  }
-
-  // Auto-append USDT if not provided
-  if (!symbol.endsWith('USDT')) {
-    symbol = `${symbol}USDT`;
-  }
-
-  const tick = latestPrices.get(symbol);
-
-  // Fallback to REST quote if WS has not streamed this symbol yet
-  if (!tick) {
-    try {
-      const q = await getQuote(`BINANCE:${symbol}`);
-      const fallback: IMarketTick = {
-        symbol,
-        price: typeof q?.price === 'number' ? q.price : null
-      };
-      return res.json(fallback);
-    } catch (e: any) {
-      return res.status(404).json({ error: e?.message ?? 'symbol not found (not streamed yet)' });
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    let symbol = String(req.params.symbol || '').toUpperCase().trim();
+    if (!symbol) {
+      return res.status(400).json({ error: 'symbol is required' });
+    }
+
+    // Auto-append USDT if not provided
+    if (!symbol.endsWith('USDT')) {
+      symbol = `${symbol}USDT`;
+    }
+
+    const account = await AccountModel.findOne({ userId }).lean();
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const favorites = (account.favorites ?? []).map((s) => String(s).toUpperCase());
+    if (!favorites.includes(symbol)) {
+      return res.status(403).json({ error: 'symbol not in favorites' });
+    }
+
+    const tick = latestPrices.get(symbol);
+
+    // Do NOT fallback to REST here; favorites-only latest must reflect WS state
+    if (!tick) {
+      return res.status(404).json({ error: 'symbol not streamed yet' });
+    }
+
+    const result: IMarketTick = {
+      symbol,
+      price: typeof tick.price === 'number' ? tick.price : null
+    };
+
+    res.json(result);
+  } catch (err) {
+    console.error('Failed to load latest price by symbol:', err);
+    res.status(500).json({ error: 'Failed to load latest price by symbol' });
   }
-
-  const result: IMarketTick = {
-    symbol,
-    price: typeof tick.price === 'number' ? tick.price : null
-  };
-
-  res.json(result);
 }
 
 export async function getBinanceSymbols(_req: Request, res: Response) {

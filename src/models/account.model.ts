@@ -3,7 +3,7 @@ import type { IAccount } from '../interfaces/account.interface';
 
 const DEFAULT_FAVORITES = [
   'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'ADAUSDT', 'XRPUSDT', 'DOGEUSDT',
-  'AVAXUSDT','DOTUSDT', 'LINKUSDT','TRXUSDT','ATOMUSDT','LTCUSDT','ETCUSDT'
+  'AVAXUSDT','DOTUSDT', 'LINKUSDT','TRXUSDT','ATOMUSDT','LTCUSDT'
 ];
 
 const AccountSchema = new Schema(

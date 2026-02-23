@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { AccountModel } from '../../models/account.model';
+import { notifyUserFavoritesChange, notifyUpstreamFavoritesChange } from '../../websocket/finnhub.websocket';
 
 export async function getMyAccount(req: Request, res: Response) {
   try {
@@ -61,6 +62,8 @@ export async function updateMyFavorites(req: Request, res: Response) {
     const account = await AccountModel.findOne({ userId });
     if (!account) return res.status(404).json({ error: 'Account not found' });
 
+    const prevFavorites = new Set((account.favorites ?? []).map((s) => String(s).toUpperCase()));
+
     const normalize = (s: string) => {
       let v = String(s || '').toUpperCase().trim();
       if (!v) return '';
@@ -97,8 +100,20 @@ export async function updateMyFavorites(req: Request, res: Response) {
       });
     }
 
+    const nextFavorites = new Set((account.favorites ?? []).map((s) => String(s).toUpperCase()));
+    const subscribe = Array.from(nextFavorites).filter((s) => !prevFavorites.has(s));
+    const unsubscribe = Array.from(prevFavorites).filter((s) => !nextFavorites.has(s));
+
     await account.save();
-    res.json({ favorites: account.favorites });
+
+    // Notify WS layer to auto-(un)subscribe this user's live stream
+    if (subscribe.length || unsubscribe.length) {
+      notifyUserFavoritesChange(String(userId), { subscribe, unsubscribe });
+      // Also notify upstream Finnhub to (un)subscribe symbols globally
+      notifyUpstreamFavoritesChange({ subscribe, unsubscribe });
+    }
+
+    res.json({ favorites: account.favorites, ws: { subscribe, unsubscribe } });
   } catch (err) {
     console.error('Failed to update favorites:', err);
     res.status(500).json({ error: 'Failed to update favorites' });
