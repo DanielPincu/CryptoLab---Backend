@@ -4,7 +4,6 @@ import type { Server as HttpServer } from 'http';
 
 import { env } from '../config/env';
 import { AccountModel } from '../models/account.model';
-import { MarketBackupModel } from '../models/marketBackup.model'
 
 // --- Helpers ---
 function normalizeSymbol(s: string) {
@@ -20,10 +19,6 @@ export const latestPrices = new Map<string, { price: number; marketTimestamp: nu
 
 let finnhubGlobal: WebSocket | null = null;
 const pendingUpstreamSubs = new Set<string>();
-const upstreamSubs = new Set<string>();
-
-const lastBackupAt = new Map<string, number>();
-const BACKUP_INTERVAL_MS = 60_000; // 1 minute
 
 // Finnhub API key
 const FINNHUB_API_KEY = env.FINNHUB_API_KEY;
@@ -35,9 +30,6 @@ type FinnhubTradeMsg = {
 };
 
 // --- Exported helpers ---
-export function isFinnhubLive() {
-  return finnhubGlobal?.readyState === WebSocket.OPEN
-}
 export function registerUserSocket(userId: string, ws: WebSocket, favorites?: string[]) {
   userSockets.set(userId, ws);
 
@@ -69,57 +61,35 @@ export function notifyUserFavoritesChange(
 export function notifyUpstreamFavoritesChange(
   opts: { subscribe?: string[]; unsubscribe?: string[] }
 ) {
-  const subs = uniqNorm(opts.subscribe)
-  const unsubs = uniqNorm(opts.unsubscribe)
+  const subs = uniqNorm(opts.subscribe);
+  const unsubs = uniqNorm(opts.unsubscribe);
 
+  // If upstream not ready, queue desired subscriptions
   if (!finnhubGlobal || finnhubGlobal.readyState !== WebSocket.OPEN) {
-    subs.forEach((s) => pendingUpstreamSubs.add(s))
-    unsubs.forEach((s) => pendingUpstreamSubs.delete(s))
-    return
+    subs.forEach((s) => pendingUpstreamSubs.add(s));
+    unsubs.forEach((s) => pendingUpstreamSubs.delete(s));
+    return;
   }
 
   subs.forEach((symbol) => {
-    if (!upstreamSubs.has(symbol)) {
-      upstreamSubs.add(symbol)
-      finnhubGlobal!.send(JSON.stringify({ type: 'subscribe', symbol: `BINANCE:${symbol}` }))
-    }
-  })
+    finnhubGlobal!.send(JSON.stringify({ type: 'subscribe', symbol: `BINANCE:${symbol}` }));
+  });
 
   unsubs.forEach((symbol) => {
-    if (upstreamSubs.has(symbol)) {
-      upstreamSubs.delete(symbol)
-      finnhubGlobal!.send(JSON.stringify({ type: 'unsubscribe', symbol: `BINANCE:${symbol}` }))
-    }
-  })
+    finnhubGlobal!.send(JSON.stringify({ type: 'unsubscribe', symbol: `BINANCE:${symbol}` }));
+  });
 }
 
 export function subscribeFavoritesOnLogin(favorites: string[]) {
   const syms = uniqNorm(favorites);
   if (!syms.length) return;
   notifyUpstreamFavoritesChange({ subscribe: syms });
-  syms.forEach((symbol) => {
-    const cached = latestPrices.get(symbol)
-    if (cached) {
-      MarketBackupModel.updateOne(
-        { symbol },
-        { $set: { symbol, price: cached.price, marketTimestamp: cached.marketTimestamp, updatedAt: new Date() } },
-        { upsert: true }
-      ).catch((e) => console.error('marketBackup seed failed:', e.message))
-    }
-  })
 }
 
 // --- WS attach ---
 export function attachFinnhubAndClientWS(server: HttpServer) {
   const wss = new WebSocketServer({ server });
   const clientSubs = new Map<WebSocket, Set<string>>();
-
-  function isSymbolSubscribed(symbol: string) {
-    for (const set of clientSubs.values()) {
-      if (set?.has(symbol)) return true
-    }
-    return false
-  }
 
   wss.on('connection', (client: WebSocket) => {
     clientSubs.set(client, new Set());
@@ -191,10 +161,7 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
         const unique = Array.from(new Set(allFavs));
 
         unique.forEach((symbol) => {
-          if (!upstreamSubs.has(symbol)) {
-            upstreamSubs.add(symbol)
-            finnhubGlobal!.send(JSON.stringify({ type: 'subscribe', symbol: `BINANCE:${symbol}` }))
-          }
+          finnhubGlobal!.send(JSON.stringify({ type: 'subscribe', symbol: `BINANCE:${symbol}` }));
         });
       } catch (e) {
         console.error('Failed to rehydrate Finnhub subscriptions from DB:', e);
@@ -202,10 +169,7 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
 
       // Flush queued subscriptions
       pendingUpstreamSubs.forEach((symbol) => {
-        if (!upstreamSubs.has(symbol)) {
-          upstreamSubs.add(symbol)
-          finnhubGlobal!.send(JSON.stringify({ type: 'subscribe', symbol: `BINANCE:${symbol}` }))
-        }
+        finnhubGlobal!.send(JSON.stringify({ type: 'subscribe', symbol: `BINANCE:${symbol}` }));
       });
       pendingUpstreamSubs.clear();
     });
@@ -222,21 +186,6 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
           const marketTs = Number(t.t);
 
           latestPrices.set(symbol, { price, marketTimestamp: marketTs });
-
-          if (upstreamSubs.has(symbol) || isSymbolSubscribed(symbol)) {
-            const now = Date.now();
-            const last = lastBackupAt.get(symbol) || 0;
-
-            if (now - last >= BACKUP_INTERVAL_MS) {
-              lastBackupAt.set(symbol, now);
-              MarketBackupModel.updateOne(
-                { symbol },
-                { $set: { symbol, price, marketTimestamp: marketTs, updatedAt: new Date() } },
-                { upsert: true }
-              ).catch((e) => console.error('marketBackup upsert failed:', e.message))
-            }
-          }
-
           broadcast({ symbol, price, time: marketTs });
         }
       }
