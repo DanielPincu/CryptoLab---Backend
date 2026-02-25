@@ -18,6 +18,9 @@ const uniqNorm = (arr: string[] = []) =>
 const userSockets = new Map<string, WebSocket>();
 export const latestPrices = new Map<string, { price: number; marketTimestamp: number }>();
 
+// Per-socket downstream subscriptions (used for filtered broadcast)
+const clientSubs = new Map<WebSocket, Set<string>>();
+
 let finnhubGlobal: WebSocket | null = null;
 const pendingUpstreamSubs = new Set<string>();
 const upstreamSubs = new Set<string>();
@@ -112,7 +115,6 @@ export function subscribeFavoritesOnLogin(favorites: string[]) {
 // --- WS attach ---
 export function attachFinnhubAndClientWS(server: HttpServer) {
   const wss = new WebSocketServer({ server });
-  const clientSubs = new Map<WebSocket, Set<string>>();
 
   function isSymbolSubscribed(symbol: string) {
     for (const set of clientSubs.values()) {
@@ -121,17 +123,24 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
     return false
   }
 
-  wss.on('connection', (client: WebSocket) => {
+  wss.on('connection', (client: WebSocket, request) => {
     clientSubs.set(client, new Set());
     client.send(JSON.stringify({ type: 'info', message: 'connected' }));
 
     // Optional userId + favorites via query
     try {
-      const url = new URL((client as any).url || '', 'http://localhost');
+      const url = new URL(request.url || '', 'http://localhost');
       const userId = url.searchParams.get('userId');
       const favsParam = url.searchParams.get('favorites');
-      const favorites = favsParam ? uniqNorm(favsParam.split(',')) : undefined;
+      const favorites = favsParam ? uniqNorm(favsParam.split(',')) : [];
+
       if (userId) registerUserSocket(userId, client, favorites);
+
+      // Populate per-socket subscription state for filtering
+      if (favorites.length) {
+        const set = clientSubs.get(client)!;
+        favorites.forEach((s) => set.add(s));
+      }
     } catch {}
 
     client.on('message', (raw) => {
@@ -163,12 +172,16 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
     });
   });
 
-  function broadcast(payload: { symbol: string; price: number; time: number }) {
-    const msg = JSON.stringify(payload);
+  function broadcast(symbol: string, price: number, time: number) {
+    const payload = JSON.stringify({ symbol, price, time });
+
     wss.clients.forEach((c: WebSocket) => {
-      if (c.readyState === WebSocket.OPEN) {
-        c.send(msg);
-      }
+      if (c.readyState !== WebSocket.OPEN) return;
+
+      const subs = clientSubs.get(c);
+      if (!subs || !subs.has(symbol)) return;
+
+      c.send(payload);
     });
   }
 
@@ -237,7 +250,7 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
             }
           }
 
-          broadcast({ symbol, price, time: marketTs });
+          broadcast(symbol, price, marketTs);
         }
       }
     });
