@@ -5,6 +5,7 @@ import userRoutes from '../modules/user/user.routes';
 import accountRoutes from '../modules/account/account.routes';
 import  tradeRoutes  from '../modules/trade/trade.routes';
 import positionRoutes from '../modules/position/position.routes';
+import transactionRoutes from '../modules/transaction/transaction.routes'
 
 const router = Router();
 
@@ -21,6 +22,8 @@ router.use('/user', authRoutes); // public: register/login
 router.use('/user', userRoutes); // protected routes apply requireAuth inside user.routes
 router.use('/trade', tradeRoutes); // protected routes apply requireAuth inside trade.routes
 router.use('/positions', positionRoutes); // protected routes apply requireAuth inside position.routes
+router.use('/transactions', transactionRoutes); // protected routes apply requireAuth inside transaction.routes
+
 
 router.use((_req, res) => {
   res.status(404).json({ error: 'Not Found' });

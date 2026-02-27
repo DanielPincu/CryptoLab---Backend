@@ -1,9 +1,10 @@
 import mongoose from 'mongoose'
 import { PositionModel } from '../../models/position.model'
-import { TradeModel } from '../../models/trade.model'
+import { TransactionModel } from '../../models/transaction.model'
 import { AccountModel } from '../../models/account.model'
 import { latestPrices } from '../../websocket/finnhub.websocket'
-import type { TradeSide } from '../../interfaces/trade.interface'
+import { MarketBackupModel } from '../../models/marketBackup.model'
+import type { TradeSide } from '../../interfaces/transaction.interface'
 
 function normalizeSymbol(s: string) {
   return String(s || '').replace(/^BINANCE:/i, '').toUpperCase().trim()
@@ -21,12 +22,22 @@ export async function executeTrade(
     throw new Error('Quantity must be greater than 0')
   }
 
+  let price: number | null = null
+
   const tick = latestPrices.get(symbol)
-  if (!tick) {
-    throw new Error('No live price available')
+  if (tick?.price) {
+    price = tick.price
+  } else {
+    // fallback to DB backup if WS is down
+    const backup = await MarketBackupModel.findOne({ symbol }).lean()
+    if (backup?.price) {
+      price = backup.price
+    }
   }
 
-  const price = tick.price
+  if (!price) {
+    throw new Error('No price available (live or backup)')
+  }
   const cost = price * qty
 
   const session = await mongoose.startSession()
@@ -37,6 +48,7 @@ export async function executeTrade(
     if (!account) throw new Error('Account not found')
 
     let position = await PositionModel.findOne({ userId, symbol }).session(session)
+    let realizedPnl = 0
 
     if (side === 'BUY') {
       if (account.cashBalance < cost) {
@@ -66,6 +78,8 @@ export async function executeTrade(
         throw new Error('Not enough position to sell')
       }
 
+      realizedPnl = Number(((price - position.avgEntryPrice) * qty).toFixed(8))
+
       account.cashBalance += cost
 
       position.qty -= qty
@@ -79,14 +93,15 @@ export async function executeTrade(
 
     await account.save({ session })
 
-    await TradeModel.create(
+    await TransactionModel.create(
       [
         {
           userId,
           symbol,
           side,
           qty,
-          price
+          price,
+          ...(side === 'SELL' ? { realizedPnl } : {})
         }
       ],
       { session }
