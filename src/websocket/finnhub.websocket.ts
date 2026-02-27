@@ -3,8 +3,8 @@ import WebSocket, { WebSocketServer, type RawData } from 'ws';
 import type { Server as HttpServer } from 'http';
 
 import { env } from '../config/env';
-import { AccountModel } from '../models/account.model';
-import { MarketBackupModel } from '../models/marketBackup.model'
+import { AccountModel } from '../schemas/account.schema';
+import { MarketBackupModel } from '../schemas/marketBackup.schema'
 
 // --- Helpers ---
 function normalizeSymbol(s: string) {

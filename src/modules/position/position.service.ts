@@ -1,4 +1,4 @@
-import { PositionModel } from '../../models/position.model'
+import { PositionModel } from '../../schemas/position.schema'
 import { latestPrices } from '../../websocket/finnhub.websocket'
 
 function normalizeSymbol(s: string) {

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { registerUser, loginUser } from './auth.service';
-import { AccountModel } from '../../models/account.model';
+import { AccountModel } from '../../schemas/account.schema';
 import { notifyUpstreamFavoritesChange } from '../../websocket/finnhub.websocket';
 
 export async function register(req: Request, res: Response) {

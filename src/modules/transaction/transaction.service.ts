@@ -1,4 +1,4 @@
-import { TransactionModel } from '../../models/transaction.model'
+import { TransactionModel } from '../../schemas/transaction.schema'
 
 function normalizeSymbol(s: string) {
   return String(s || '').replace(/^BINANCE:/i, '').toUpperCase().trim()

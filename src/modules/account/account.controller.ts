@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { AccountModel } from '../../models/account.model';
+import { AccountModel } from '../../schemas/account.schema';
 import { notifyUserFavoritesChange, notifyUpstreamFavoritesChange } from '../../websocket/finnhub.websocket';
 
 export async function getMyAccount(req: Request, res: Response) {

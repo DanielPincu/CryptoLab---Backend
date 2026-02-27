@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { UserModel } from '../../models/user.model';
+import { UserModel } from '../../schemas/user.schema';
 import bcrypt from 'bcrypt';
 
 export async function getUserInfo(req: Request, res: Response) {

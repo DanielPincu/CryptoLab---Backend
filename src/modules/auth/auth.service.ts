@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { UserModel } from '../../models/user.model';
-import { AccountModel } from '../../models/account.model';
+import { UserModel } from '../../schemas/user.schema';
+import { AccountModel } from '../../schemas/account.schema';
 import { env } from '../../config/env';
 
 export async function registerUser(input: { username: string; email: string; password: string }) {

@@ -1,9 +1,9 @@
 import mongoose from 'mongoose'
-import { PositionModel } from '../../models/position.model'
-import { TransactionModel } from '../../models/transaction.model'
-import { AccountModel } from '../../models/account.model'
+import { PositionModel } from '../../schemas/position.schema'
+import { TransactionModel } from '../../schemas/transaction.schema'
+import { AccountModel } from '../../schemas/account.schema'
 import { latestPrices } from '../../websocket/finnhub.websocket'
-import { MarketBackupModel } from '../../models/marketBackup.model'
+import { MarketBackupModel } from '../../schemas/marketBackup.schema'
 import type { TradeSide } from '../../interfaces/transaction.interface'
 
 function normalizeSymbol(s: string) {

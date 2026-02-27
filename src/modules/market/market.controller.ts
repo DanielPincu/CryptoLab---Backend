@@ -3,8 +3,8 @@ import { latestPrices, isFinnhubLive } from '../../websocket/finnhub.websocket';
 import { fetchBinanceSymbols, getQuote, fetchBinanceHistory } from './market.services';
 import type { IMarketTick } from '../../interfaces/marketTick.interface';
 import type { IMarketLatest } from '../../interfaces/marketLatest.interface';
-import { AccountModel } from '../../models/account.model';
-import { MarketBackupModel } from '../../models/marketBackup.model';
+import { AccountModel } from '../../schemas/account.schema';
+import { MarketBackupModel } from '../../schemas/marketBackup.schema';
 
 export async function getLatest(req: Request, res: Response) {
   try {
