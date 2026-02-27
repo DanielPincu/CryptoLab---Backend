@@ -4,7 +4,7 @@ import { fetchBinanceSymbols, getQuote, fetchBinanceHistory } from './market.ser
 import type { IMarketTick } from '../../interfaces/marketTick.interface';
 import type { IMarketLatest } from '../../interfaces/marketLatest.interface';
 import { AccountModel } from '../../schemas/account.schema';
-import { MarketBackupModel } from '../../schemas/marketBackup.schema';
+import { MarketBackupSchema } from '../../schemas/marketBackup.schema';
 
 export async function getLatest(req: Request, res: Response) {
   try {
@@ -37,7 +37,7 @@ export async function getLatest(req: Request, res: Response) {
     }
 
     // Fallback to Mongo backup when Finnhub is down
-    const backups = await MarketBackupModel.find({ symbol: { $in: favorites } }).lean();
+    const backups = await MarketBackupSchema.find({ symbol: { $in: favorites } }).lean();
     const backupMap = new Map(backups.map((b: any) => [String(b.symbol).toUpperCase(), b]));
 
     const data: IMarketTick[] = favorites.map((symbol) => {

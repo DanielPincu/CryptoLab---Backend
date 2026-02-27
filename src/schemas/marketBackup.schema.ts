@@ -31,7 +31,7 @@ const marketBackupSchema = new Schema<IMarketBackup>(
   }
 )
 
-export const MarketBackupModel = model<IMarketBackup>(
+export const MarketBackupSchema = model<IMarketBackup>(
   'marketBackup',
   marketBackupSchema
 )

@@ -3,7 +3,7 @@ import { PositionModel } from '../../schemas/position.schema'
 import { TransactionModel } from '../../schemas/transaction.schema'
 import { AccountModel } from '../../schemas/account.schema'
 import { latestPrices } from '../../websocket/finnhub.websocket'
-import { MarketBackupModel } from '../../schemas/marketBackup.schema'
+import { MarketBackupSchema } from '../../schemas/marketBackup.schema'
 import type { TradeSide } from '../../interfaces/transaction.interface'
 
 function normalizeSymbol(s: string) {
@@ -29,7 +29,7 @@ export async function executeTrade(
     price = tick.price
   } else {
     // fallback to DB backup if WS is down
-    const backup = await MarketBackupModel.findOne({ symbol }).lean()
+    const backup = await MarketBackupSchema.findOne({ symbol }).lean()
     if (backup?.price) {
       price = backup.price
     }

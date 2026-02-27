@@ -4,7 +4,7 @@ import type { Server as HttpServer } from 'http';
 
 import { env } from '../config/env';
 import { AccountModel } from '../schemas/account.schema';
-import { MarketBackupModel } from '../schemas/marketBackup.schema'
+import { MarketBackupSchema } from '../schemas/marketBackup.schema'
 
 // --- Helpers ---
 function normalizeSymbol(s: string) {
@@ -103,7 +103,7 @@ export function subscribeFavoritesOnLogin(favorites: string[]) {
   syms.forEach((symbol) => {
     const cached = latestPrices.get(symbol)
     if (cached) {
-      MarketBackupModel.updateOne(
+      MarketBackupSchema.updateOne(
         { symbol },
         { $set: { symbol, price: cached.price, marketTimestamp: cached.marketTimestamp, updatedAt: new Date() } },
         { upsert: true }
@@ -242,7 +242,7 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
 
             if (now - last >= BACKUP_INTERVAL_MS) {
               lastBackupAt.set(symbol, now);
-              MarketBackupModel.updateOne(
+              MarketBackupSchema.updateOne(
                 { symbol },
                 { $set: { symbol, price, marketTimestamp: marketTs, updatedAt: new Date() } },
                 { upsert: true }
