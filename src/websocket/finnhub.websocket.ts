@@ -28,6 +28,9 @@ const upstreamSubs = new Set<string>();
 const lastBackupAt = new Map<string, number>();
 const BACKUP_INTERVAL_MS = 60_000; // 1 minute
 
+const MAX_LIVE_AGE_MS = 30_000; // consider live tick stale after 30s
+const WATCHDOG_INTERVAL_MS = 10_000; // check every 10s
+
 // Finnhub API key
 const FINNHUB_API_KEY = env.FINNHUB_API_KEY;
 
@@ -184,6 +187,41 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
       c.send(payload);
     });
   }
+
+  async function broadcastBackupIfStale() {
+    const now = Date.now();
+
+    // Only consider symbols that somebody is subscribed to downstream.
+    // That keeps DB load bounded.
+    const activeSymbols = new Set<string>();
+    for (const set of clientSubs.values()) {
+      for (const s of set) activeSymbols.add(s);
+    }
+
+    for (const symbol of activeSymbols) {
+      const live = latestPrices.get(symbol);
+      const isStale = !live || now - Number(live.marketTimestamp || 0) > MAX_LIVE_AGE_MS;
+      if (!isStale) continue;
+
+      try {
+        const backup = await MarketBackupSchema.findOne({ symbol }).lean();
+        const backupPrice = (backup as any)?.price;
+        const backupTs = (backup as any)?.marketTimestamp;
+
+        if (typeof backupPrice === 'number') {
+          // use backup timestamp if available, otherwise now
+          broadcast(symbol, Number(backupPrice), typeof backupTs === 'number' ? Number(backupTs) : now);
+        }
+      } catch (e: any) {
+        console.error('watchdog backup fetch failed:', e?.message || e);
+      }
+    }
+  }
+
+  // Periodically push backup prices for symbols that are stale on WS.
+  setInterval(() => {
+    void broadcastBackupIfStale();
+  }, WATCHDOG_INTERVAL_MS);
 
   function connectFinnhub() {
     if (finnhubGlobal && finnhubGlobal.readyState === WebSocket.OPEN) return;
