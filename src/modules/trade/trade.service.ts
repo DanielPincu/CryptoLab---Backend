@@ -10,17 +10,40 @@ function normalizeSymbol(s: string) {
   return String(s || '').replace(/^BINANCE:/i, '').toUpperCase().trim()
 }
 
+type TradeParams = {
+  qty?: number
+  amountUSD?: number
+  useAllCash?: boolean
+  sellAll?: boolean
+}
+
+function toNumOrUndef(v: any): number | undefined {
+  if (v == null) return undefined
+  const n = Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
+function roundQty(q: number) {
+  // crypto precision
+  return Number(q.toFixed(8))
+}
+
 export async function executeTrade(
   userId: string,
   symbolRaw: string,
   side: TradeSide,
-  qty: number
+  qtyOrParams: number | TradeParams
 ) {
   const symbol = normalizeSymbol(symbolRaw)
 
-  if (qty <= 0) {
-    throw new Error('Quantity must be greater than 0')
-  }
+  // Backwards compatible input:
+  // - executeTrade(..., qtyNumber)
+  // - executeTrade(..., { qty })
+  // - executeTrade(..., { amountUSD })
+  // - executeTrade(..., { useAllCash: true })
+  // - executeTrade(..., { sellAll: true })
+  const params: TradeParams =
+    typeof qtyOrParams === 'number' ? { qty: qtyOrParams } : (qtyOrParams || {})
 
   let price: number | null = null
 
@@ -28,7 +51,6 @@ export async function executeTrade(
   if (tick?.price) {
     price = tick.price
   } else {
-    // fallback to DB backup if WS is down
     const backup = await MarketBackupSchema.findOne({ symbol }).lean()
     if (backup?.price) {
       price = backup.price
@@ -38,7 +60,6 @@ export async function executeTrade(
   if (!price) {
     throw new Error('No price available (live or backup)')
   }
-  const cost = price * qty
 
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -48,9 +69,58 @@ export async function executeTrade(
     if (!account) throw new Error('Account not found')
 
     let position = await PositionModel.findOne({ userId, symbol }).session(session)
-    let realizedPnl = 0
+
+    const useAllCash = Boolean(params.useAllCash)
+    const sellAll = Boolean(params.sellAll)
+
+    // Normalize numeric inputs
+    const qtyInput = toNumOrUndef(params.qty)
+    const amountUSDInput = toNumOrUndef(params.amountUSD)
+
+    // Validate mutually exclusive intent
+    const buyModeCount =
+      (qtyInput != null ? 1 : 0) + (amountUSDInput != null ? 1 : 0) + (useAllCash ? 1 : 0)
+    const sellModeCount =
+      (qtyInput != null ? 1 : 0) + (amountUSDInput != null ? 1 : 0) + (sellAll ? 1 : 0)
 
     if (side === 'BUY') {
+      if (buyModeCount !== 1) {
+        throw new Error('Provide exactly one of qty, amountUSD, or useAllCash')
+      }
+    }
+
+    if (side === 'SELL') {
+      if (sellModeCount !== 1) {
+        throw new Error('Provide exactly one of qty, amountUSD, or sellAll')
+      }
+    }
+
+    // Resolve qty and cost inside the transaction
+    let qty: number
+    let cost: number
+
+    if (side === 'BUY') {
+      let targetUSD: number | undefined
+
+      if (useAllCash) {
+        targetUSD = account.cashBalance
+      } else if (amountUSDInput != null) {
+        targetUSD = amountUSDInput
+      }
+
+      if (targetUSD != null) {
+        if (targetUSD <= 0) throw new Error('AmountUSD must be greater than 0')
+        qty = roundQty(targetUSD / price)
+      } else {
+        qty = qtyInput as number
+      }
+
+      if (!Number.isFinite(qty) || qty <= 0) {
+        throw new Error('Quantity must be greater than 0')
+      }
+
+      cost = price * qty
+
       if (account.cashBalance < cost) {
         throw new Error('Insufficient balance')
       }
@@ -71,14 +141,32 @@ export async function executeTrade(
         position.avgEntryPrice = newAvg
         await position.save({ session })
       }
-    }
-
-    if (side === 'SELL') {
-      if (!position || position.qty < qty) {
+    } else {
+      // SELL
+      if (!position || position.qty <= 0) {
         throw new Error('Not enough position to sell')
       }
 
-      realizedPnl = Number(((price - position.avgEntryPrice) * qty).toFixed(8))
+      if (sellAll) {
+        qty = position.qty
+      } else if (amountUSDInput != null) {
+        if (amountUSDInput <= 0) throw new Error('AmountUSD must be greater than 0')
+        qty = roundQty(amountUSDInput / price)
+      } else {
+        qty = qtyInput as number
+      }
+
+      if (!Number.isFinite(qty) || qty <= 0) {
+        throw new Error('Quantity must be greater than 0')
+      }
+
+      if (position.qty < qty) {
+        throw new Error('Not enough position to sell')
+      }
+
+      cost = price * qty
+
+      const realizedPnl = Number(((price - position.avgEntryPrice) * qty).toFixed(8))
 
       account.cashBalance += cost
 
@@ -89,10 +177,29 @@ export async function executeTrade(
       } else {
         await position.save({ session })
       }
+
+      await TransactionModel.create(
+        [
+          {
+            userId,
+            symbol,
+            side,
+            qty,
+            price,
+            realizedPnl
+          }
+        ],
+        { session }
+      )
+
+      await account.save({ session })
+      await session.commitTransaction()
+      session.endSession()
+
+      return { symbol, side, qty, price }
     }
 
-    await account.save({ session })
-
+    // BUY transaction record
     await TransactionModel.create(
       [
         {
@@ -100,13 +207,13 @@ export async function executeTrade(
           symbol,
           side,
           qty,
-          price,
-          ...(side === 'SELL' ? { realizedPnl } : {})
+          price
         }
       ],
       { session }
     )
 
+    await account.save({ session })
     await session.commitTransaction()
     session.endSession()
 
