@@ -8,11 +8,13 @@ export async function getMyTransactions(req: Request, res: Response) {
 
     const symbol = req.query.symbol ? String(req.query.symbol) : undefined
     const limit = req.query.limit ? Number(req.query.limit) : undefined
+    const cursor = req.query.cursor ? String(req.query.cursor) : undefined
 
     const txs = await getUserTransactions({
       userId: String(userId),
       symbol,
-      limit
+      limit,
+      cursor
     })
 
     const cleaned = txs.map((t: any) => {
@@ -25,7 +27,9 @@ export async function getMyTransactions(req: Request, res: Response) {
       return obj
     })
 
-    res.json(cleaned)
+    const nextCursor = cleaned.length ? String((cleaned as any)[cleaned.length - 1]._id) : null
+
+    res.json({ items: cleaned, nextCursor })
   } catch (err) {
     console.error('Failed to load transactions:', err)
     res.status(500).json({ error: 'Failed to load transactions' })

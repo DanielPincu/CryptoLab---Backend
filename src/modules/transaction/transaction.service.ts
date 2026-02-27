@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import { TransactionModel } from '../../schemas/transaction.schema'
 
 function normalizeSymbol(s: string) {
@@ -8,6 +9,7 @@ export async function getUserTransactions(opts: {
   userId: string
   symbol?: string
   limit?: number
+  cursor?: string
 }) {
   const { userId } = opts
   const symbol = opts.symbol ? normalizeSymbol(opts.symbol) : undefined
@@ -16,8 +18,16 @@ export async function getUserTransactions(opts: {
   const q: Record<string, any> = { userId }
   if (symbol) q.symbol = symbol
 
+  if (opts.cursor) {
+    try {
+      q._id = { $lt: new mongoose.Types.ObjectId(String(opts.cursor)) }
+    } catch {
+      // ignore invalid cursor
+    }
+  }
+
   const txs = await TransactionModel.find(q)
-    .sort({ executedAt: -1, createdAt: -1 })
+    .sort({ _id: -1 })
     .limit(limit)
     .lean()
 
