@@ -198,24 +198,57 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
       for (const s of set) activeSymbols.add(s);
     }
 
-    for (const symbol of activeSymbols) {
-      const live = latestPrices.get(symbol);
-      const isStale = !live || now - Number(live.marketTimestamp || 0) > MAX_LIVE_AGE_MS;
-      if (!isStale) continue;
+    await Promise.all(
+      Array.from(activeSymbols).map(async (symbol) => {
+        const live = latestPrices.get(symbol);
+        const isStale = !live || now - Number(live.marketTimestamp || 0) > MAX_LIVE_AGE_MS;
+        if (!isStale) return;
 
-      try {
-        const backup = await MarketBackupSchema.findOne({ symbol }).lean();
-        const backupPrice = (backup as any)?.price;
-        const backupTs = (backup as any)?.marketTimestamp;
+        try {
+          // ---- Try REST price from Binance first ----
+          try {
+            const r = await fetch(
+              `https://api.binance.com/api/v3/ticker/price?symbol=${encodeURIComponent(symbol)}`
+            );
 
-        if (typeof backupPrice === 'number') {
-          // use backup timestamp if available, otherwise now
-          broadcast(symbol, Number(backupPrice), typeof backupTs === 'number' ? Number(backupTs) : now);
+            if (r.ok) {
+              const j = await r.json() as { price?: string };
+              const restPrice = Number(j?.price);
+
+              if (!Number.isNaN(restPrice)) {
+                // update in‑memory cache
+                latestPrices.set(symbol, { price: restPrice, marketTimestamp: now });
+
+                // update DB backup
+                await MarketBackupSchema.updateOne(
+                  { symbol },
+                  { $set: { symbol, price: restPrice, marketTimestamp: now, updatedAt: new Date() } },
+                  { upsert: true }
+                );
+
+                broadcast(symbol, restPrice, now);
+                return;
+              }
+            }
+          } catch {}
+
+          // ---- If REST fails, fallback to DB backup ----
+          const backup = await MarketBackupSchema.findOne({ symbol }).lean();
+          const backupPrice = (backup as any)?.price;
+          const backupTs = (backup as any)?.marketTimestamp;
+
+          if (typeof backupPrice === 'number') {
+            broadcast(
+              symbol,
+              Number(backupPrice),
+              typeof backupTs === 'number' ? Number(backupTs) : now
+            );
+          }
+        } catch (e: any) {
+          console.error('watchdog fallback failed:', e?.message || e);
         }
-      } catch (e: any) {
-        console.error('watchdog backup fetch failed:', e?.message || e);
-      }
-    }
+      })
+    );
   }
 
   // Periodically push backup prices for symbols that are stale on WS.

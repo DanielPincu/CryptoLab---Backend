@@ -1,4 +1,5 @@
 import { latestPrices } from '../../websocket/finnhub.websocket';
+import { MarketBackupSchema } from '../../schemas/marketBackup.schema';
 
 function required(name: string): string {
   const v = process.env[name];
@@ -11,7 +12,7 @@ const FINNHUB_API_KEY = required('FINNHUB_API_KEY');
 // ---- Simple in-memory cache for Finnhub symbols (avoid spamming API) ----
 let symbolsCache: any[] | null = null;
 let symbolsCacheAt = 0;
-const SYMBOLS_CACHE_TTL_MS = 60_000; // 1 minute
+const SYMBOLS_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export async function fetchBinanceSymbols() {
   const now = Date.now();
@@ -44,18 +45,40 @@ export async function fetchBinanceSymbols() {
 // ---- Live quote from Finnhub WS (in-memory snapshot) ----
 export async function getQuote(symbol: string) {
   const clean = String(symbol).replace(/^BINANCE:/i, '').toUpperCase().trim();
+
+  // ---- Try WebSocket live price first ----
   const tick = latestPrices.get(clean);
 
-  if (!tick) {
-    throw new Error('No live price available for symbol');
+  if (tick) {
+    return {
+      symbol: `BINANCE:${clean}`,
+      price: tick.price,
+      ts: tick.marketTimestamp,
+      source: 'finnhub'
+    };
   }
 
-  return {
-    symbol: `BINANCE:${clean}`,
-    price: tick.price,
-    ts: tick.marketTimestamp,
-    source: 'finnhub'
-  };
+  // ---- Fallback to DB backup if WS price missing ----
+  const backup = await MarketBackupSchema
+    .findOne({ symbol: { $in: [clean, `BINANCE:${clean}`] } })
+    .lean();
+
+  if ((backup as any)?.price) {
+    const price = Number((backup as any).price);
+    const ts = Number((backup as any).marketTimestamp ?? Date.now());
+
+    // refresh in-memory cache so next requests succeed
+    latestPrices.set(clean, { price, marketTimestamp: ts });
+
+    return {
+      symbol: `BINANCE:${clean}`,
+      price,
+      ts,
+      source: 'backup'
+    };
+  }
+
+  throw new Error('No price available for symbol');
 }
 
 // ---- History from Binance REST (no axios) ----
