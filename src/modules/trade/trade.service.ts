@@ -154,6 +154,13 @@ export async function executeTrade(
         position.avgEntryPrice = newAvg
         await position.save({ session })
       }
+
+      if (!Array.isArray(account.favorites)) {
+        account.favorites = []
+      }
+      if (!account.favorites.includes(symbol)) {
+        account.favorites.push(symbol)
+      }
     } else {
       // SELL
       if (!position || position.qty <= 0) {
@@ -184,6 +191,7 @@ export async function executeTrade(
       account.cashBalance += cost
 
       position.qty -= qty
+
 
       if (position.qty === 0) {
         await PositionModel.deleteOne({ _id: position._id }).session(session)
