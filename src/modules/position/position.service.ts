@@ -1,6 +1,5 @@
 import { PositionModel } from '../../schemas/position.schema'
 import { latestPrices } from '../../websocket/finnhub.websocket'
-import { MarketBackupSchema } from '../../schemas/marketBackup.schema'
 
 function normalizeSymbol(s: string) {
   return String(s || '').replace(/^BINANCE:/i, '').toUpperCase().trim()
@@ -14,13 +13,26 @@ export async function getUserPositions(userId: string) {
 
     let currentPrice: number | null = null
 
+    // 1. Try WebSocket cache first
     const live = latestPrices.get(symbol)
-    if (live?.price) {
+    if (typeof live?.price === 'number') {
       currentPrice = live.price
-    } else {
-      const backup = await MarketBackupSchema.findOne({ symbol }).lean()
-      if (backup?.price) {
-        currentPrice = backup.price
+    }
+
+    // 2. Fallback to Binance REST if WS cache misses the symbol
+    if (currentPrice == null) {
+      try {
+        const res = await fetch(
+          `https://api.binance.com/api/v3/ticker/price?symbol=${encodeURIComponent(symbol)}`
+        )
+        const json: { price?: string } = await res.json()
+        const restPrice = Number(json?.price)
+
+        if (Number.isFinite(restPrice)) {
+          currentPrice = restPrice
+        }
+      } catch {
+        // ignore REST failure and keep null
       }
     }
 

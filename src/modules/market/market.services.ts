@@ -1,13 +1,10 @@
 import { latestPrices } from '../../websocket/finnhub.websocket';
-import { MarketBackupSchema } from '../../schemas/marketBackup.schema';
 
 function required(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`Missing required env var: ${name}`);
   return v;
 }
-
-const FINNHUB_API_KEY = required('FINNHUB_API_KEY');
 
 // ---- Simple in-memory cache for Finnhub symbols (avoid spamming API) ----
 let symbolsCache: any[] | null = null;
@@ -20,7 +17,7 @@ export async function fetchBinanceSymbols() {
     return symbolsCache;
   }
 
-  const url = `https://finnhub.io/api/v1/crypto/symbol?exchange=BINANCE&token=${FINNHUB_API_KEY}`;
+  const url = 'https://api.binance.com/api/v3/exchangeInfo';
   const res = await fetch(url);
 
   if (!res.ok) {
@@ -28,18 +25,23 @@ export async function fetchBinanceSymbols() {
     throw new Error(`Finnhub API error: ${res.status} ${text}`);
   }
 
-  const data = (await res.json()) as Array<{
-    description: string;
-    displaySymbol: string;
-    symbol: string; // e.g. BINANCE:BTCUSDT
-  }>;
+  const json = await res.json();
 
-  // Filter only USDT pairs
-  const usdtOnly = data.filter((x) => x.symbol?.toUpperCase().endsWith('USDT'));
+  const data = (json.symbols ?? [])
+    .filter((s: any) =>
+      s.status === 'TRADING' &&
+      s.quoteAsset === 'USDT' &&
+      s.isSpotTradingAllowed === true
+    )
+    .map((s: any) => ({
+      description: s.symbol,
+      displaySymbol: s.symbol,
+      symbol: `BINANCE:${s.symbol}`
+    }));
 
-  symbolsCache = usdtOnly;
+  symbolsCache = data;
   symbolsCacheAt = now;
-  return usdtOnly;
+  return data;
 }
 
 // ---- Live quote from Finnhub WS (in-memory snapshot) ----
@@ -54,31 +56,11 @@ export async function getQuote(symbol: string) {
       symbol: `BINANCE:${clean}`,
       price: tick.price,
       ts: tick.marketTimestamp,
-      source: 'finnhub'
+      source: tick.source
     };
   }
 
-  // ---- Fallback to DB backup if WS price missing ----
-  const backup = await MarketBackupSchema
-    .findOne({ symbol: { $in: [clean, `BINANCE:${clean}`] } })
-    .lean();
-
-  if ((backup as any)?.price) {
-    const price = Number((backup as any).price);
-    const ts = Number((backup as any).marketTimestamp ?? Date.now());
-
-    // refresh in-memory cache so next requests succeed
-    latestPrices.set(clean, { price, marketTimestamp: ts });
-
-    return {
-      symbol: `BINANCE:${clean}`,
-      price,
-      ts,
-      source: 'backup'
-    };
-  }
-
-  throw new Error('No price available for symbol');
+  throw new Error('No live price available for symbol');
 }
 
 // ---- History from Binance REST (no axios) ----

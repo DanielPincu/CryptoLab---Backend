@@ -3,7 +3,6 @@ import { AccountModel } from '../../schemas/account.schema'
 import { PositionModel } from '../../schemas/position.schema'
 import { TransactionModel } from '../../schemas/transaction.schema'
 import { latestPrices } from '../../websocket/finnhub.websocket'
-import { MarketBackupSchema } from '../../schemas/marketBackup.schema'
 
 function normalizeSymbol(s: string) {
   return String(s || '').replace(/^BINANCE:/i, '').toUpperCase().trim()
@@ -14,9 +13,6 @@ async function getPrice(symbolRaw: string): Promise<number | null> {
 
   const tick = latestPrices.get(symbol)
   if (tick?.price) return tick.price
-
-  const backup = await MarketBackupSchema.findOne({ symbol }).lean()
-  if (backup?.price) return backup.price
 
   return null
 }

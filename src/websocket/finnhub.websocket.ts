@@ -4,7 +4,6 @@ import type { Server as HttpServer } from 'http';
 
 import { env } from '../config/env';
 import { AccountModel } from '../schemas/account.schema';
-import { MarketBackupSchema } from '../schemas/marketBackup.schema'
 
 // --- Helpers ---
 function normalizeSymbol(s: string) {
@@ -16,7 +15,7 @@ const uniqNorm = (arr: string[] = []) =>
 
 // --- State ---
 const userSockets = new Map<string, WebSocket>();
-export const latestPrices = new Map<string, { price: number; marketTimestamp: number }>();
+export const latestPrices = new Map<string, { price: number; marketTimestamp: number; source: 'finnhub' | 'binance' }>();
 
 // Per-socket downstream subscriptions (used for filtered broadcast)
 const clientSubs = new Map<WebSocket, Set<string>>();
@@ -28,8 +27,8 @@ const upstreamSubs = new Set<string>();
 const lastBackupAt = new Map<string, number>();
 const BACKUP_INTERVAL_MS = 60_000; // 1 minute
 
-const MAX_LIVE_AGE_MS = 30_000; // consider live tick stale after 30s
-const WATCHDOG_INTERVAL_MS = 10_000; // check every 10s
+const MAX_LIVE_AGE_MS = 120_000; // consider live tick stale after 120s
+const WATCHDOG_INTERVAL_MS = 60_000; // check every 60s
 
 // Finnhub API key
 const FINNHUB_API_KEY = env.FINNHUB_API_KEY;
@@ -103,16 +102,6 @@ export function subscribeFavoritesOnLogin(favorites: string[]) {
   const syms = uniqNorm(favorites);
   if (!syms.length) return;
   notifyUpstreamFavoritesChange({ subscribe: syms });
-  syms.forEach((symbol) => {
-    const cached = latestPrices.get(symbol)
-    if (cached) {
-      MarketBackupSchema.updateOne(
-        { symbol },
-        { $set: { symbol, price: cached.price, marketTimestamp: cached.marketTimestamp, updatedAt: new Date() } },
-        { upsert: true }
-      ).catch((e) => console.error('marketBackup seed failed:', e.message))
-    }
-  })
 }
 
 // --- WS attach ---
@@ -175,8 +164,8 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
     });
   });
 
-  function broadcast(symbol: string, price: number, time: number) {
-    const payload = JSON.stringify({ symbol, price, time });
+  function broadcast(symbol: string, price: number, time: number, source: 'finnhub' | 'binance') {
+    const payload = JSON.stringify({ symbol, price, time, source });
 
     wss.clients.forEach((c: WebSocket) => {
       if (c.readyState !== WebSocket.OPEN) return;
@@ -217,33 +206,14 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
 
               if (!Number.isNaN(restPrice)) {
                 // update in‑memory cache
-                latestPrices.set(symbol, { price: restPrice, marketTimestamp: now });
+                latestPrices.set(symbol, { price: restPrice, marketTimestamp: now, source: 'binance' });
 
-                // update DB backup
-                await MarketBackupSchema.updateOne(
-                  { symbol },
-                  { $set: { symbol, price: restPrice, marketTimestamp: now, updatedAt: new Date() } },
-                  { upsert: true }
-                );
-
-                broadcast(symbol, restPrice, now);
+                broadcast(symbol, restPrice, now, 'binance');
                 return;
               }
             }
           } catch {}
 
-          // ---- If REST fails, fallback to DB backup ----
-          const backup = await MarketBackupSchema.findOne({ symbol }).lean();
-          const backupPrice = (backup as any)?.price;
-          const backupTs = (backup as any)?.marketTimestamp;
-
-          if (typeof backupPrice === 'number') {
-            broadcast(
-              symbol,
-              Number(backupPrice),
-              typeof backupTs === 'number' ? Number(backupTs) : now
-            );
-          }
         } catch (e: any) {
           console.error('watchdog fallback failed:', e?.message || e);
         }
@@ -305,23 +275,13 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
           const price = Number(t.p);
           const marketTs = Number(t.t);
 
-          latestPrices.set(symbol, { price, marketTimestamp: marketTs });
+          latestPrices.set(symbol, { price, marketTimestamp: marketTs, source: 'finnhub' });
 
           if (upstreamSubs.has(symbol) || isSymbolSubscribed(symbol)) {
-            const now = Date.now();
-            const last = lastBackupAt.get(symbol) || 0;
-
-            if (now - last >= BACKUP_INTERVAL_MS) {
-              lastBackupAt.set(symbol, now);
-              MarketBackupSchema.updateOne(
-                { symbol },
-                { $set: { symbol, price, marketTimestamp: marketTs, updatedAt: new Date() } },
-                { upsert: true }
-              ).catch((e) => console.error('marketBackup upsert failed:', e.message))
-            }
+            // no DB backup persistence anymore
           }
 
-          broadcast(symbol, price, marketTs);
+          broadcast(symbol, price, marketTs, 'finnhub');
         }
       }
     });

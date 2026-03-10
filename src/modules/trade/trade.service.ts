@@ -3,7 +3,6 @@ import { PositionModel } from '../../schemas/position.schema'
 import { TransactionModel } from '../../schemas/transaction.schema'
 import { AccountModel } from '../../schemas/account.schema'
 import { latestPrices } from '../../websocket/finnhub.websocket'
-import { MarketBackupSchema } from '../../schemas/marketBackup.schema'
 import type { TradeSide } from '../../interfaces/transaction.interface'
 
 function normalizeSymbol(s: string) {
@@ -47,18 +46,32 @@ export async function executeTrade(
 
   let price: number | null = null
 
+  // Try websocket cache first
   const tick = latestPrices.get(symbol)
-  if (tick?.price) {
+  if (typeof tick?.price === 'number') {
     price = tick.price
-  } else {
-    const backup = await MarketBackupSchema.findOne({ symbol }).lean()
-    if (backup?.price) {
-      price = backup.price
+  }
+
+  // If websocket cache missed it (possible on restart / reconnect),
+  // fallback to Binance REST ticker
+  if (price == null) {
+    try {
+      const res = await fetch(
+        `https://api.binance.com/api/v3/ticker/price?symbol=${encodeURIComponent(symbol)}`
+      )
+      const json: any = await res.json()
+      const restPrice = Number(json?.price)
+
+      if (Number.isFinite(restPrice)) {
+        price = restPrice
+      }
+    } catch {
+      // ignore REST failure
     }
   }
 
-  if (!price) {
-    throw new Error('No price available (live or backup)')
+  if (price == null) {
+    throw new Error('No live price available')
   }
 
   const session = await mongoose.startSession()
