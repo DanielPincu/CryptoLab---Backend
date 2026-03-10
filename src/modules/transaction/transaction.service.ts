@@ -31,5 +31,18 @@ export async function getUserTransactions(opts: {
     .limit(limit)
     .lean()
 
-  return txs
+  const enriched = txs.map((t: any) => {
+    if (typeof t.realizedPnl === 'number' && typeof t.price === 'number' && typeof t.qty === 'number') {
+      const sellValue = t.price * t.qty
+      const costBasis = sellValue - t.realizedPnl
+
+      if (costBasis !== 0) {
+        t.realizedPnlPercent = (t.realizedPnl / costBasis) * 100
+      }
+    }
+
+    return t
+  })
+
+  return enriched
 }
