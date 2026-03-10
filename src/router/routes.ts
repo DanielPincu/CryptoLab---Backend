@@ -7,6 +7,7 @@ import tradeRoutes  from '../modules/trade/trade.routes';
 import positionRoutes from '../modules/position/position.routes';
 import transactionRoutes from '../modules/transaction/transaction.routes'
 import portfolioRoutes from '../modules/portfolio/portfolio.routes';
+import leaderboardRoutes from '../modules/leaderboard/leaderboard.routes';
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.use('/trade', tradeRoutes); // protected routes apply requireAuth inside 
 router.use('/positions', positionRoutes); // protected routes apply requireAuth inside position.routes
 router.use('/transactions', transactionRoutes); // protected routes apply requireAuth inside transaction.routes
 router.use('/portfolio', portfolioRoutes);
+router.use('/leaderboard', leaderboardRoutes); // public routes, no auth required
 
 router.use((_req, res) => {
   res.status(404).json({ error: 'Not Found' });
