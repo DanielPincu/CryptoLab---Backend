@@ -6,43 +6,11 @@ function required(name: string): string {
   return v;
 }
 
-// ---- Simple in-memory cache for Finnhub symbols (avoid spamming API) ----
+// ---- Simple in-memory cache for symbols (avoid spamming API) ----
 let symbolsCache: any[] | null = null;
 let symbolsCacheAt = 0;
 const SYMBOLS_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-export async function fetchBinanceSymbols() {
-  const now = Date.now();
-  if (symbolsCache && now - symbolsCacheAt < SYMBOLS_CACHE_TTL_MS) {
-    return symbolsCache;
-  }
-
-  const url = 'https://api.binance.com/api/v3/exchangeInfo';
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Finnhub API error: ${res.status} ${text}`);
-  }
-
-  const json = await res.json();
-
-  const data = (json.symbols ?? [])
-    .filter((s: any) =>
-      s.status === 'TRADING' &&
-      s.quoteAsset === 'USDT' &&
-      s.isSpotTradingAllowed === true
-    )
-    .map((s: any) => ({
-      description: s.symbol,
-      displaySymbol: s.symbol,
-      symbol: `BINANCE:${s.symbol}`
-    }));
-
-  symbolsCache = data;
-  symbolsCacheAt = now;
-  return data;
-}
 
 // ---- Live quote from Finnhub WS (in-memory snapshot) ----
 export async function getQuote(symbol: string) {
@@ -63,7 +31,7 @@ export async function getQuote(symbol: string) {
   throw new Error('No live price available for symbol');
 }
 
-// ---- History from Binance REST (no axios) ----
+// ---- History from Binance REST ----
 export async function fetchBinanceHistory(
   symbol: string,
   interval = '5m',
