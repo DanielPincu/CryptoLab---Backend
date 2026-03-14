@@ -4,6 +4,7 @@ import { TransactionModel } from '../../schemas/transaction.schema'
 import { AccountModel } from '../../schemas/account.schema'
 import { latestPrices } from '../../websocket/finnhub.websocket'
 import type { TradeSide } from '../../interfaces/transaction.interface'
+import type { IAccount } from '../../interfaces/account.interface'
 
 function normalizeSymbol(s: string) {
   return String(s || '').replace(/^BINANCE:/i, '').toUpperCase().trim()
@@ -22,9 +23,40 @@ function toNumOrUndef(v: any): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+
 function roundQty(q: number) {
   // crypto precision
   return Number(q.toFixed(8))
+}
+
+function checkLuckyStrike(account: IAccount): boolean {
+  const now = new Date()
+
+  // Reset daily state if day changed
+  if (
+    !account.lastLuckyStrikeReset ||
+    now.toDateString() !== new Date(account.lastLuckyStrikeReset).toDateString()
+  ) {
+    account.dailyStartBalance = account.cashBalance
+    account.luckyStrikeClaimedToday = false
+    account.lastLuckyStrikeReset = now
+  }
+
+  if (account.luckyStrikeClaimedToday) return false
+
+  const start = account.dailyStartBalance || account.cashBalance
+  if (start <= 0) return false
+
+  const dailyReturn = (account.cashBalance - start) / start
+
+  // Lucky Strike rule: +$10 when daily return >= 5%
+  if (dailyReturn >= 0.05) {
+    account.cashBalance += 10
+    account.luckyStrikeClaimedToday = true
+    return true
+  }
+
+  return false
 }
 
 export async function executeTrade(
@@ -189,6 +221,7 @@ export async function executeTrade(
       const realizedPnl = Number(((price - position.avgEntryPrice) * qty).toFixed(8))
 
       account.cashBalance += cost
+      const luckyStrikePaid = checkLuckyStrike(account)
 
       position.qty -= qty
 
@@ -212,6 +245,21 @@ export async function executeTrade(
         ],
         { session }
       )
+
+      if (luckyStrikePaid) {
+        await TransactionModel.create(
+          [
+            {
+              userId,
+              symbol: 'LUCKY_STRIKE',
+              side: 'REWARD',
+              qty: 1,
+              price: 10
+            }
+          ],
+          { session }
+        )
+      }
 
       await account.save({ session })
       await session.commitTransaction()

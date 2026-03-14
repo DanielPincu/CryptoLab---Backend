@@ -5,6 +5,9 @@ export interface IAccount {
   cashBalance: number;
   baseCurrency: string;
   favorites: string[];
+  dailyStartBalance: number;
+  luckyStrikeClaimedToday: boolean;
+  lastLuckyStrikeReset: Date;
   createdAt: Date;
   updatedAt: Date;
 }

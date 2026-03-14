@@ -13,7 +13,10 @@ export async function registerUser(input: { username: string; email: string; pas
 
   await AccountModel.create({
     userId: user._id,
-    cashBalance: env.STARTING_CASH
+    cashBalance: env.STARTING_CASH,
+    dailyStartBalance: env.STARTING_CASH,
+    luckyStrikeClaimedToday: false,
+    lastLuckyStrikeReset: new Date()
   });
 
   const token = jwt.sign(

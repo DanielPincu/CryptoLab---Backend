@@ -1,6 +1,6 @@
 import type { Types } from 'mongoose';
 
-export type TradeSide = 'BUY' | 'SELL';
+export type TradeSide = 'BUY' | 'SELL' | 'REWARD';
 
 export interface ITransaction {
   userId: Types.ObjectId;

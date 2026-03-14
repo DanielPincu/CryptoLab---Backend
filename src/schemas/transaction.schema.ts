@@ -5,7 +5,7 @@ const TransactionSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     symbol: { type: String, required: true },
-    side: { type: String, required: true, enum: ['BUY', 'SELL'] },
+    side: { type: String, required: true, enum: ['BUY', 'SELL', 'REWARD'] },
     qty: { type: Number, required: true },
     price: { type: Number, required: true },
     realizedPnl: { type: Number },
