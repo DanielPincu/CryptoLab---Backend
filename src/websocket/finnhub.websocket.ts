@@ -24,9 +24,6 @@ let finnhubGlobal: WebSocket | null = null;
 const pendingUpstreamSubs = new Set<string>();
 const upstreamSubs = new Set<string>();
 
-const lastBackupAt = new Map<string, number>();
-const BACKUP_INTERVAL_MS = 60_000; // 1 minute
-
 const MAX_LIVE_AGE_MS = 120_000; // consider live tick stale after 120s
 const WATCHDOG_INTERVAL_MS = 60_000; // check every 60s
 
@@ -181,7 +178,6 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
     const now = Date.now();
 
     // Only consider symbols that somebody is subscribed to downstream.
-    // That keeps DB load bounded.
     const activeSymbols = new Set<string>();
     for (const set of clientSubs.values()) {
       for (const s of set) activeSymbols.add(s);

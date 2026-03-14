@@ -6,11 +6,6 @@ function required(name: string): string {
   return v;
 }
 
-// ---- Simple in-memory cache for symbols (avoid spamming API) ----
-let symbolsCache: any[] | null = null;
-let symbolsCacheAt = 0;
-const SYMBOLS_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
 
 // ---- Live quote from Finnhub WS (in-memory snapshot) ----
 export async function getQuote(symbol: string) {
