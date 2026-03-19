@@ -82,6 +82,24 @@ export async function getPortfolioSummary(userId: string) {
   const cashBalance = Number(account.cashBalance ?? 0)
   const totalValue = cashBalance + positionsValue
 
+  const startEquity = Number(account.dailyStartBalance ?? totalValue)
+
+  const equityReturn = startEquity > 0
+    ? (totalValue - startEquity) / startEquity
+    : 0
+
+  const target = 0.05
+
+  const luckyStrike = {
+    progressPercent: Number((equityReturn * 100).toFixed(2)),
+    remainingPercent: Number(Math.max(0, (target - equityReturn) * 100).toFixed(2)),
+    targetPercent: target * 100,
+    currentEquity: roundUsd(totalValue),
+    startEquity: roundUsd(startEquity),
+    reward: 100,
+    achieved: Boolean(account.luckyStrikeClaimedToday)
+  }
+
   const netPnl = realizedPnl + unrealizedPnl
   const totalReturnPct = totalBuyVolume > 0
     ? netPnl / totalBuyVolume
@@ -97,6 +115,7 @@ export async function getPortfolioSummary(userId: string) {
     totalReturnPct: Number(totalReturnPct.toFixed(6)),
     totalInvested: roundUsd(totalBuyVolume),
     totalSold: roundUsd(totalSellVolume),
+    luckyStrike,
     updatedAt: new Date().toISOString()
   }
 }
