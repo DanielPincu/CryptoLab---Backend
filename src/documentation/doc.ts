@@ -1,5 +1,8 @@
 import { OpenAPIV3 } from 'openapi-types'
 
+const PORT = process.env.PORT || ''
+const LIVE_URL = process.env.LiveURL || ''
+
 import { healthPaths } from './paths/health.paths'
 import { authPaths } from './paths/auth.paths'
 import { accountPaths } from './paths/account.paths'
@@ -30,8 +33,12 @@ export const swaggerSpec: OpenAPIV3.Document = {
 
   servers: [
     {
-      url: 'http://localhost:3000',
+      url: `http://localhost:${PORT}`,
       description: 'Local development',
+    },
+    {
+      url: LIVE_URL,
+      description: 'Production',
     },
   ],
 
