@@ -6,6 +6,7 @@ import { accountPaths } from './paths/account.paths'
 import { transactionsPaths } from './paths/transactions.paths'
 import { tradePaths } from './paths/trade.paths'
 import { positionsPaths } from './paths/positions.paths'
+import { portfolioPaths } from './paths/portfolio.paths'
 
 
 import { commonSchemas } from './schemas/common.schemas'
@@ -14,6 +15,8 @@ import { accountSchemas } from './schemas/account.schemas'
 import { transactionsSchemas } from './schemas/transactions.schemas'
 import { tradeSchemas } from './schemas/trade.schemas'
 import { positionsSchemas } from './schemas/positions.schemas'
+import { portfolioSchemas } from './schemas/portfolio.schemas'
+
 
 export const swaggerSpec: OpenAPIV3.Document = {
   openapi: '3.0.3',
@@ -45,6 +48,7 @@ export const swaggerSpec: OpenAPIV3.Document = {
       ...transactionsSchemas,
       ...tradeSchemas,
       ...positionsSchemas,
+      ...portfolioSchemas,
     },
   },
 
@@ -55,6 +59,7 @@ export const swaggerSpec: OpenAPIV3.Document = {
     ...transactionsPaths,
     ...tradePaths,
     ...positionsPaths,
+    ...portfolioPaths,
   },
 
   tags: [
@@ -64,5 +69,6 @@ export const swaggerSpec: OpenAPIV3.Document = {
     { name: 'Transactions', description: 'Transactions endpoints' },
     { name: 'Trade', description: 'Trade execution endpoints' },
     { name: 'Positions', description: 'Open positions endpoints' },
+    { name: 'Portfolio', description: 'Portfolio summary endpoints' },
   ],
 }
