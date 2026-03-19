@@ -1,8 +1,5 @@
 import { OpenAPIV3 } from 'openapi-types'
 
-const PORT = process.env.PORT || ''
-const LIVE_URL = process.env.LiveURL || ''
-
 import { healthPaths } from './paths/health.paths'
 import { authPaths } from './paths/auth.paths'
 import { accountPaths } from './paths/account.paths'
@@ -33,11 +30,11 @@ export const swaggerSpec: OpenAPIV3.Document = {
 
   servers: [
     {
-      url: `http://localhost:${PORT}`,
+      url: `http://localhost:3000`,
       description: 'Local development',
     },
     {
-      url: LIVE_URL,
+      url: 'https://cryptolab-backend-oyfx.onrender.com',
       description: 'Production',
     },
   ],

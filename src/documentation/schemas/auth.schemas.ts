@@ -11,10 +11,11 @@ export const authSchemas: Record<string, OpenAPIV3.SchemaObject> = {
 
   RegisterRequest: {
     type: 'object',
-    required: ['email', 'password'],
+    required: ['username', 'email', 'password'],
     properties: {
-      email: { type: 'string', example: 'daniel@example.com' },
-      password: { type: 'string', example: 'RunTimeError123' },
+      username: { type: 'string', example: 'UFO' },
+      email: { type: 'string', example: 'yo8ufo@gmail.com' },
+      password: { type: 'string', example: 'RunTimeError' },
     },
   },
 

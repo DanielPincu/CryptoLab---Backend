@@ -11,6 +11,16 @@ export const authPaths: OpenAPIV3.PathsObject = {
         content: {
           'application/json': {
             schema: { $ref: '#/components/schemas/RegisterRequest' },
+            examples: {
+              default: {
+                summary: 'Register payload',
+                value: {
+                  username: 'UFO',
+                  email: 'yo8ufo@gmail.com',
+                  password: 'RunTimeError',
+                },
+              },
+            },
           },
         },
       },
@@ -45,6 +55,15 @@ export const authPaths: OpenAPIV3.PathsObject = {
         content: {
           'application/json': {
             schema: { $ref: '#/components/schemas/LoginRequest' },
+            examples: {
+              default: {
+                summary: 'Login payload',
+                value: {
+                  email: 'yo8ufo@gmail.com',
+                  password: 'RunTimeError',
+                },
+              },
+            },
           },
         },
       },
