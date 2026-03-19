@@ -7,13 +7,33 @@ import { attachFinnhubAndClientWS } from './websocket/finnhub.websocket';
 
 import { env } from './config/env';
 
+function setupCors(app: express.Express) {
+  const origins = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  app.use(cors({
+    origin: (origin, cb) => {
+      if (!origin || origins.includes(origin)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }));
+}
+
 
 export async function startServer() {
   try {
     await connectDB();
 
     const app = express();
-    app.use(cors());
+    setupCors(app);
     app.use(express.json());
 
     // Mount all routes from routes.ts
