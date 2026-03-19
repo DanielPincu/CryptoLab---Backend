@@ -32,16 +32,6 @@ function roundQty(q: number) {
 function checkLuckyStrike(account: IAccount): boolean {
   const now = new Date()
 
-  // Reset daily state if day changed
-  if (
-    !account.lastLuckyStrikeReset ||
-    now.toDateString() !== new Date(account.lastLuckyStrikeReset).toDateString()
-  ) {
-    account.dailyStartBalance = account.cashBalance
-    account.luckyStrikeClaimedToday = false
-    account.lastLuckyStrikeReset = now
-  }
-
   if (account.luckyStrikeClaimedToday) return false
 
   const start = account.dailyStartBalance || account.cashBalance

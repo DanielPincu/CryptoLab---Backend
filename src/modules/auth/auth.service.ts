@@ -34,6 +34,23 @@ export async function loginUser(input: { email: string; password: string }) {
   const ok = await bcrypt.compare(input.password, user.passwordHash);
   if (!ok) throw new Error('Invalid credentials');
 
+  const account = await AccountModel.findOne({ userId: user._id });
+
+  if (account) {
+    const now = new Date();
+
+    const isNewDay =
+      !account.lastLuckyStrikeReset ||
+      now.toDateString() !== new Date(account.lastLuckyStrikeReset).toDateString();
+
+    if (isNewDay) {
+      account.dailyStartBalance = account.cashBalance;
+      account.luckyStrikeClaimedToday = false;
+      account.lastLuckyStrikeReset = now;
+      await account.save();
+    }
+  }
+
   const token = jwt.sign(
     { sub: String(user._id) },
     env.JWT_SECRET as jwt.Secret,
