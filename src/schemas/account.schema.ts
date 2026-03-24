@@ -11,10 +11,7 @@ const AccountSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     cashBalance: { type: Number, required: true },
     baseCurrency: { type: String, required: true, default: 'USD' },
-    favorites: { type: [String], default: () => DEFAULT_FAVORITES },
-    dailyStartBalance: { type: Number, required: true, default: 0 },
-    luckyStrikeClaimedToday: { type: Boolean, required: true, default: false },
-    lastLuckyStrikeReset: { type: Date, required: true, default: () => new Date() }
+    favorites: { type: [String], default: () => DEFAULT_FAVORITES }
   },
   { timestamps: true }
 );

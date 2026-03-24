@@ -4,7 +4,6 @@ import { TransactionModel } from '../../schemas/transaction.schema'
 import { AccountModel } from '../../schemas/account.schema'
 import { latestPrices } from '../../websocket/finnhub.websocket'
 import type { TradeSide } from '../../interfaces/transaction.interface'
-import type { IAccount } from '../../interfaces/account.interface'
 
 function normalizeSymbol(s: string) {
   return String(s || '').replace(/^BINANCE:/i, '').toUpperCase().trim()
@@ -29,25 +28,6 @@ function roundQty(q: number) {
   return Number(q.toFixed(8))
 }
 
-function checkLuckyStrike(account: IAccount): boolean {
-  const now = new Date()
-
-  if (account.luckyStrikeClaimedToday) return false
-
-  const start = account.dailyStartBalance || account.cashBalance
-  if (start <= 0) return false
-
-  const dailyReturn = (account.cashBalance - start) / start
-
-  // Lucky Strike rule: +$10 when daily return >= 5%
-  if (dailyReturn >= 0.05) {
-    account.cashBalance += 10
-    account.luckyStrikeClaimedToday = true
-    return true
-  }
-
-  return false
-}
 
 export async function executeTrade(
   userId: string,
@@ -210,8 +190,13 @@ export async function executeTrade(
 
       const realizedPnl = Number(((price - position.avgEntryPrice) * qty).toFixed(8))
 
-      account.cashBalance += cost
-      const luckyStrikePaid = checkLuckyStrike(account)
+      let reward = 0
+      if (realizedPnl > 0) {
+        reward = Math.min(realizedPnl * 0.1, 100)
+        reward = Number(reward.toFixed(2))
+      }
+
+      account.cashBalance += cost + reward
 
       position.qty -= qty
 
@@ -236,15 +221,15 @@ export async function executeTrade(
         { session }
       )
 
-      if (luckyStrikePaid) {
+      if (reward > 0) {
         await TransactionModel.create(
           [
             {
               userId,
-              symbol: 'LUCKY_STRIKE',
+              symbol: 'REWARD',
               side: 'REWARD',
               qty: 1,
-              price: 10
+              price: reward
             }
           ],
           { session }
@@ -255,7 +240,7 @@ export async function executeTrade(
       await session.commitTransaction()
       session.endSession()
 
-      return { symbol, side, qty, price }
+      return { symbol, side, qty, price, reward }
     }
 
     // BUY transaction record
