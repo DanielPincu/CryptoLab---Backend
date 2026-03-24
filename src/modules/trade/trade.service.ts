@@ -226,7 +226,7 @@ export async function executeTrade(
           [
             {
               userId,
-              symbol: 'REWARD',
+              symbol: 'TRANSACTION_REWARD',
               side: 'REWARD',
               qty: 1,
               price: reward

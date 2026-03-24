@@ -8,6 +8,7 @@ import { tradePaths } from './paths/trade.paths'
 import { positionsPaths } from './paths/positions.paths'
 import { portfolioPaths } from './paths/portfolio.paths'
 import { leaderboardPaths } from './paths/leaderboard.paths'
+import { gamePaths } from './paths/game.paths'
 
 
 import { commonSchemas } from './schemas/common.schemas'
@@ -18,6 +19,7 @@ import { tradeSchemas } from './schemas/trade.schemas'
 import { positionsSchemas } from './schemas/positions.schemas'
 import { portfolioSchemas } from './schemas/portfolio.schemas'
 import { leaderboardSchemas } from './schemas/leaderboard.schemas'
+import { gameSchemas } from './schemas/game.schemas'
 
 
 export const swaggerSpec: OpenAPIV3.Document = {
@@ -56,6 +58,7 @@ export const swaggerSpec: OpenAPIV3.Document = {
       ...positionsSchemas,
       ...portfolioSchemas,
       ...leaderboardSchemas,
+      ...gameSchemas,
     },
   },
 
@@ -68,6 +71,7 @@ export const swaggerSpec: OpenAPIV3.Document = {
     ...positionsPaths,
     ...portfolioPaths,
     ...leaderboardPaths,
+    ...gamePaths,
   },
 
   tags: [
@@ -79,5 +83,6 @@ export const swaggerSpec: OpenAPIV3.Document = {
     { name: 'Positions', description: 'Open positions endpoints' },
     { name: 'Portfolio', description: 'Portfolio summary endpoints' },
     { name: 'Leaderboard', description: 'Leaderboard endpoints' },
+    { name: 'Game', description: 'Game endpoints' },
   ],
 }
