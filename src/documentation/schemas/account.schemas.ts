@@ -8,13 +8,6 @@ export const accountSchemas: Record<string, OpenAPIV3.SchemaObject> = {
       userId: { type: 'string', example: '69bbb06679639a0cccfb6931' },
       cashBalance: { type: 'number', example: 10050.004121381882 },
       baseCurrency: { type: 'string', example: 'USD' },
-      dailyStartBalance: { type: 'number', example: 10000 },
-      luckyStrikeClaimedToday: { type: 'boolean', example: false },
-      lastLuckyStrikeReset: {
-        type: 'string',
-        format: 'date-time',
-        example: '2026-03-19T09:05:14.335Z',
-      },
       favorites: {
         type: 'array',
         items: { type: 'string' },
