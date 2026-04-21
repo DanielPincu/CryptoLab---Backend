@@ -5,7 +5,6 @@ export const transactionsPaths: OpenAPIV3.PathsObject = {
     get: {
       tags: ['Transactions'],
       summary: 'Get user transactions',
-      security: [{ bearerAuth: [] }],
       responses: {
         200: {
           description: 'Transactions fetched successfully',

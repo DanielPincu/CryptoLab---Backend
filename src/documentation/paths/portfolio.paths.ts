@@ -5,7 +5,6 @@ export const portfolioPaths: OpenAPIV3.PathsObject = {
     get: {
       tags: ['Portfolio'],
       summary: 'Get portfolio summary',
-      security: [{ bearerAuth: [] }],
       responses: {
         200: {
           description: 'Portfolio summary fetched successfully',

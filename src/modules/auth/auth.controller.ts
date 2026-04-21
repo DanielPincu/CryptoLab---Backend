@@ -16,9 +16,17 @@ export async function register(req: Request, res: Response) {
       }
     }
 
-    return res.status(201).json(result);
-  } catch (e: any) {
-    return res.status(400).json({ error: e.message ?? 'Register failed' });
+    // set JWT cookie
+    res.cookie('token', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 60 * 24
+    })
+
+    return res.status(201).json({ user: result.user });
+  } catch (e: unknown) {
+    return res.status(400).json({ error: e instanceof Error ? e.message : 'Register failed' });
   }
 }
 
@@ -35,8 +43,30 @@ export async function login(req: Request, res: Response) {
       }
     }
 
-    return res.json(result);
-  } catch (e: any) {
-    return res.status(401).json({ error: e.message ?? 'Login failed' });
+    // set JWT cookie
+    res.cookie('token', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 60 * 24
+    })
+
+    return res.json({ user: result.user });
+  } catch (e: unknown) {
+    return res.status(401).json({ error: e instanceof Error ? e.message : 'Login failed' });
+  }
+}
+
+export async function logout(req: Request, res: Response) {
+  try {
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    })
+
+    return res.json({ message: 'Logged out' })
+  } catch (e: unknown) {
+    return res.status(500).json({ error: 'Logout failed' })
   }
 }

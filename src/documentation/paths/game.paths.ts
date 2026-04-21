@@ -5,7 +5,6 @@ export const gamePaths: OpenAPIV3.PathsObject = {
     post: {
       tags: ['Game'],
       summary: 'Start a new game session',
-      security: [{ bearerAuth: [] }],
       responses: {
         200: {
           description: 'Game session started',
@@ -25,7 +24,6 @@ export const gamePaths: OpenAPIV3.PathsObject = {
     post: {
       tags: ['Game'],
       summary: 'Submit an answer for the current question',
-      security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
         content: {

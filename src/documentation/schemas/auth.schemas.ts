@@ -32,7 +32,6 @@ export const authSchemas: Record<string, OpenAPIV3.SchemaObject> = {
     type: 'object',
     properties: {
       user: { $ref: '#/components/schemas/User' },
-      token: { type: 'string', example: 'jwt.token.here' },
     },
   },
 }

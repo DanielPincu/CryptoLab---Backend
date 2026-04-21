@@ -5,7 +5,6 @@ export const positionsPaths: OpenAPIV3.PathsObject = {
     get: {
       tags: ['Positions'],
       summary: 'Get open positions',
-      security: [{ bearerAuth: [] }],
       responses: {
         200: {
           description: 'Positions fetched successfully',

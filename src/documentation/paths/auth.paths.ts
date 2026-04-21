@@ -5,7 +5,6 @@ export const authPaths: OpenAPIV3.PathsObject = {
     post: {
       tags: ['Auth'],
       summary: 'Register a new user',
-      security: [],
       requestBody: {
         required: true,
         content: {
@@ -49,7 +48,6 @@ export const authPaths: OpenAPIV3.PathsObject = {
     post: {
       tags: ['Auth'],
       summary: 'Login user',
-      security: [],
       requestBody: {
         required: true,
         content: {
@@ -81,6 +79,23 @@ export const authPaths: OpenAPIV3.PathsObject = {
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/ErrorResponse' },
+            },
+          },
+        },
+      },
+    },
+  },
+
+  '/user/logout': {
+    post: {
+      tags: ['Auth'],
+      summary: 'Logout user',
+      responses: {
+        200: {
+          description: 'Logout successful',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/MessageResponse' },
             },
           },
         },

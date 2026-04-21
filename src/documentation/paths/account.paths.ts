@@ -5,7 +5,6 @@ export const accountPaths: OpenAPIV3.PathsObject = {
     get: {
       tags: ['Account'],
       summary: 'Get current user account',
-      security: [{ bearerAuth: [] }],
       responses: {
         200: {
           description: 'Account fetched successfully',
@@ -31,7 +30,6 @@ export const accountPaths: OpenAPIV3.PathsObject = {
     get: {
       tags: ['Account'],
       summary: 'Get favorite symbols',
-      security: [{ bearerAuth: [] }],
       responses: {
         200: {
           description: 'Favorites fetched successfully',
@@ -54,7 +52,6 @@ export const accountPaths: OpenAPIV3.PathsObject = {
     patch: {
       tags: ['Account'],
       summary: 'Update favorite symbols',
-      security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
         content: {

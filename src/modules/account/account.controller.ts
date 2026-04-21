@@ -4,8 +4,7 @@ import { AccountModel } from '../../schemas/account.schema'
 
 export async function getMyAccount(req: Request, res: Response) {
   try {
-    const userId = (req as any).user?.id || (req as any).user?._id
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+    const userId = req.user!.id
 
     const account = await AccountModel.findOne({ userId }).lean()
     if (!account) return res.status(404).json({ error: 'Account not found' })
@@ -19,8 +18,7 @@ export async function getMyAccount(req: Request, res: Response) {
 
 export async function getMyFavorites(req: Request, res: Response) {
   try {
-    const userId = (req as any).user?.id || (req as any).user?._id
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+    const userId = req.user!.id
 
     const account = await AccountModel.findOne({ userId }).lean()
     if (!account) return res.status(404).json({ error: 'Account not found' })
@@ -35,8 +33,7 @@ export async function getMyFavorites(req: Request, res: Response) {
 export async function updateMyFavorites(req: Request, res: Response) {
   try {
 
-    const userId = (req as any).user?.id || (req as any).user?._id
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+    const userId = req.user!.id
 
     const result = await updateFavorites(String(userId), req.body as any)
 

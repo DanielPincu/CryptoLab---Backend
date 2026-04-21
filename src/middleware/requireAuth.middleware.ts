@@ -1,3 +1,4 @@
+import type {} from '../types/express'
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserModel } from '../schemas/user.schema';
@@ -11,13 +12,11 @@ type JwtPayload = {
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
-    const header = req.headers.authorization;
+    const token = req.cookies?.token;
 
-    if (!header || !header.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
     }
-
-    const token = header.replace('Bearer ', '').trim();
 
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
@@ -28,7 +27,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     // attach safe user to request
-    (req as any).user = {
+    req.user = {
       id: user._id.toString(),
       username: user.username,
       email: user.email

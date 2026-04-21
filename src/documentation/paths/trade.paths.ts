@@ -5,7 +5,6 @@ export const tradePaths: OpenAPIV3.PathsObject = {
     post: {
       tags: ['Trade'],
       summary: 'Execute a trade',
-      security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
         content: {

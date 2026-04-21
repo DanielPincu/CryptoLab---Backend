@@ -6,6 +6,7 @@ import { connectDB } from './driver/mongo.driver';
 import { attachFinnhubAndClientWS } from './websocket/finnhub.websocket';
 
 import { env } from './config/env';
+import cookieParser from 'cookie-parser';
 
 function setupCors(app: express.Express) {
   const origins = (process.env.CORS_ORIGINS || '')
@@ -35,6 +36,7 @@ export async function startServer() {
     const app = express();
     setupCors(app);
     app.use(express.json());
+    app.use(cookieParser());
 
     // Mount all routes from routes.ts
     app.use('/', routes);

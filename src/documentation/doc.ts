@@ -42,13 +42,6 @@ export const swaggerSpec: OpenAPIV3.Document = {
   ],
 
   components: {
-    securitySchemes: {
-      bearerAuth: {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-      },
-    },
     schemas: {
       ...commonSchemas,
       ...authSchemas,
