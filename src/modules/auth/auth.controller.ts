@@ -24,7 +24,7 @@ export async function register(req: Request, res: Response) {
       maxAge: 1000 * 60 * 60 * 24
     })
 
-    return res.status(201).json({ user: result.user });
+    return res.status(201).json({ user: result.user, token: result.token });
   } catch (e: unknown) {
     return res.status(400).json({ error: e instanceof Error ? e.message : 'Register failed' });
   }
@@ -51,7 +51,7 @@ export async function login(req: Request, res: Response) {
       maxAge: 1000 * 60 * 60 * 24
     })
 
-    return res.json({ user: result.user });
+    return res.json({ user: result.user, token: result.token });
   } catch (e: unknown) {
     return res.status(401).json({ error: e instanceof Error ? e.message : 'Login failed' });
   }
