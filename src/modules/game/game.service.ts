@@ -1,16 +1,9 @@
 import { randomUUID } from 'crypto'
 import { AccountModel } from '../../schemas/account.schema'
 import { TransactionModel } from '../../schemas/transaction.schema'
+import type { GameSession } from '../../interfaces/game.interface'
 
-type Session = {
-  userId: string
-  score: number
-  round: number
-  correctAnswer: number
-  expiresAt: number
-}
-
-const sessions = new Map<string, Session>()
+const sessions = new Map<string, GameSession>()
 
 function rand(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min

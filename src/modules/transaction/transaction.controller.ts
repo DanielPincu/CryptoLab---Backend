@@ -3,7 +3,7 @@ import { getUserTransactions } from './transaction.service'
 
 export async function getMyTransactions(req: Request, res: Response) {
   try {
-    const userId = (req as any).user?.id || (req as any).user?._id
+    const userId = req.user?.id
     if (!userId) return res.status(401).json({ error: 'Unauthorized' })
 
     const symbol = req.query.symbol ? String(req.query.symbol) : undefined
@@ -17,17 +17,17 @@ export async function getMyTransactions(req: Request, res: Response) {
       cursor
     })
 
-    const cleaned = txs.map((t: any) => {
-      const obj = t.toObject ? t.toObject() : { ...t }
+    const cleaned = txs.map((tx) => {
+      const item = { ...tx }
 
-      if (obj.side === 'BUY') {
-        delete obj.realizedPnl
+      if (item.side === 'BUY') {
+        delete item.realizedPnl
       }
 
-      return obj
+      return item
     })
 
-    const nextCursor = cleaned.length ? String((cleaned as any)[cleaned.length - 1]._id) : null
+    const nextCursor = cleaned.at(-1)?._id.toString() ?? null
 
     res.json({ items: cleaned, nextCursor })
   } catch (err) {

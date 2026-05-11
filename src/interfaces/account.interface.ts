@@ -8,3 +8,9 @@ export interface IAccount {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface UpdateFavoritesBody {
+  favorites?: string[];
+  add?: string;
+  remove?: string;
+}

@@ -1,4 +1,6 @@
 import mongoose from 'mongoose'
+import type { QueryFilter } from 'mongoose'
+import type { ITransaction, TransactionListItem } from '../../interfaces/transaction.interface'
 import { TransactionModel } from '../../schemas/transaction.schema'
 
 function normalizeSymbol(s: string) {
@@ -15,7 +17,9 @@ export async function getUserTransactions(opts: {
   const symbol = opts.symbol ? normalizeSymbol(opts.symbol) : undefined
   const limit = Math.min(Number(opts.limit ?? 100) || 100, 500)
 
-  const q: Record<string, any> = { userId }
+  const q: QueryFilter<ITransaction> = {
+    userId: new mongoose.Types.ObjectId(userId)
+  }
   if (symbol) q.symbol = symbol
 
   if (opts.cursor) {
@@ -29,9 +33,9 @@ export async function getUserTransactions(opts: {
   const txs = await TransactionModel.find(q)
     .sort({ _id: -1 })
     .limit(limit)
-    .lean()
+    .lean<TransactionListItem[]>()
 
-  const enriched = txs.map((t: any) => {
+  const enriched = txs.map((t) => {
     if (typeof t.realizedPnl === 'number' && typeof t.price === 'number' && typeof t.qty === 'number') {
       const sellValue = t.price * t.qty
       const costBasis = sellValue - t.realizedPnl

@@ -1,6 +1,11 @@
 import type { Request, Response } from 'express'
 import { updateFavorites } from './account.services'
 import { AccountModel } from '../../schemas/account.schema'
+import type { UpdateFavoritesBody } from '../../interfaces/account.interface'
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : undefined
+}
 
 export async function getMyAccount(req: Request, res: Response) {
   try {
@@ -35,18 +40,19 @@ export async function updateMyFavorites(req: Request, res: Response) {
 
     const userId = req.user!.id
 
-    const result = await updateFavorites(String(userId), req.body as any)
+    const result = await updateFavorites(String(userId), req.body as UpdateFavoritesBody)
 
     res.json(result)
 
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = errorMessage(err)
 
-    if (err.message === 'Account not found') {
-      return res.status(404).json({ error: err.message })
+    if (message === 'Account not found') {
+      return res.status(404).json({ error: message })
     }
 
-    if (err.message === 'Cannot unsubscribe while position is open') {
-      return res.status(400).json({ error: err.message })
+    if (message === 'Cannot unsubscribe while position is open') {
+      return res.status(400).json({ error: message })
     }
 
     console.error(err)

@@ -4,19 +4,17 @@ import { TransactionModel } from '../../schemas/transaction.schema'
 import { AccountModel } from '../../schemas/account.schema'
 import { latestPrices } from '../../websocket/finnhub.websocket'
 import type { TradeSide } from '../../interfaces/transaction.interface'
+import type { TradeParams } from '../../interfaces/trade.interface'
+
+interface BinanceTickerPrice {
+  price?: string | number
+}
 
 function normalizeSymbol(s: string) {
   return String(s || '').replace(/^BINANCE:/i, '').toUpperCase().trim()
 }
 
-type TradeParams = {
-  qty?: number
-  amountUSD?: number
-  useAllCash?: boolean
-  sellAll?: boolean
-}
-
-function toNumOrUndef(v: any): number | undefined {
+function toNumOrUndef(v: unknown): number | undefined {
   if (v == null) return undefined
   const n = Number(v)
   return Number.isFinite(n) ? n : undefined
@@ -61,7 +59,7 @@ export async function executeTrade(
       const res = await fetch(
         `https://api.binance.com/api/v3/ticker/price?symbol=${encodeURIComponent(symbol)}`
       )
-      const json: any = await res.json()
+      const json = await res.json() as BinanceTickerPrice
       const restPrice = Number(json?.price)
 
       if (Number.isFinite(restPrice)) {

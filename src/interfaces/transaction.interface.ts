@@ -11,3 +11,10 @@ export interface ITransaction {
   realizedPnl?: number;
   executedAt: Date;
 }
+
+export type TransactionListItem = ITransaction & {
+  _id: Types.ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
+  realizedPnlPercent?: number;
+};

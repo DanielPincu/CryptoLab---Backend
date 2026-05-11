@@ -5,9 +5,13 @@ import type { IMarketTick } from '../../interfaces/marketTick.interface';
 import type { IMarketLatest } from '../../interfaces/marketLatest.interface';
 import { AccountModel } from '../../schemas/account.schema';
 
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export async function getLatest(req: Request, res: Response) {
   try {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -40,7 +44,7 @@ export async function getLatest(req: Request, res: Response) {
 
 export async function getLatestBySymbol(req: Request, res: Response) {
   try {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -104,14 +108,14 @@ export async function quote(req: Request, res: Response) {
 
     const data = await getQuote(normalized);
     return res.json(data);
-  } catch (e: any) {
-    return res.status(404).json({ error: e?.message ?? 'Not found' });
+  } catch (e: unknown) {
+    return res.status(404).json({ error: errorMessage(e, 'Not found') });
   }
 }
 
 export async function getHistory(req: Request, res: Response) {
   try {
-    let { symbol, interval = '5m', limit = '120' } = req.query as any;
+    const { symbol, interval = '5m', limit = '120' } = req.query;
 
     if (!symbol) return res.status(400).json({ error: 'symbol is required' });
 
@@ -131,8 +135,8 @@ export async function getHistory(req: Request, res: Response) {
 
     const result = await fetchBinanceHistory(normalized, String(interval), String(limit));
     return res.json(result);
-  } catch (e: any) {
-    console.error('Failed to fetch history from Binance:', e?.message || e);
+  } catch (e: unknown) {
+    console.error('Failed to fetch history from Binance:', errorMessage(e, String(e)));
     return res.status(502).json({ error: 'Failed to fetch history from Binance' });
   }
 }

@@ -1,6 +1,7 @@
 import { TransactionModel } from '../../schemas/transaction.schema'
 import { PositionModel } from '../../schemas/position.schema'
 import { UserModel } from '../../schemas/user.schema'
+import type { LeaderboardUser } from '../../interfaces/leaderboard.interface'
 
 export async function getTradeLeaderboard() {
   const limit = 3
@@ -8,7 +9,7 @@ export async function getTradeLeaderboard() {
   const positionCollection = PositionModel.collection.name
   const userCollection = UserModel.collection.name
 
-  const leaderboard = await TransactionModel.aggregate([
+  const leaderboard = await TransactionModel.aggregate<LeaderboardUser>([
     {
       $match: {
         side: 'SELL',
@@ -174,13 +175,13 @@ export async function getTradeLeaderboard() {
   ])
 
   const hallOfFame = leaderboard
-    .filter((u: any) => u.totalPnl > 0)
-    .sort((a: any, b: any) => b.totalPnl - a.totalPnl)
+    .filter((u) => u.totalPnl > 0)
+    .sort((a, b) => b.totalPnl - a.totalPnl)
     .slice(0, limit)
 
   const wallOfShame = leaderboard
-    .filter((u: any) => u.totalPnl < 0)
-    .sort((a: any, b: any) => a.totalPnl - b.totalPnl)
+    .filter((u) => u.totalPnl < 0)
+    .sort((a, b) => a.totalPnl - b.totalPnl)
     .slice(0, limit)
 
   return {

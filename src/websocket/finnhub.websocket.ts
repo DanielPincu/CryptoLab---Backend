@@ -4,6 +4,8 @@ import type { Server as HttpServer } from 'http';
 
 import { env } from '../config/env';
 import { AccountModel } from '../schemas/account.schema';
+import type { IAccount } from '../interfaces/account.interface';
+import type { ClientSymbolsMsg, FinnhubTradeMsg } from '../interfaces/finnhub.interface';
 
 // --- Helpers ---
 function normalizeSymbol(s: string) {
@@ -30,11 +32,21 @@ const WATCHDOG_INTERVAL_MS = 60_000; // check every 60s
 // Finnhub API key
 const FINNHUB_API_KEY = env.FINNHUB_API_KEY;
 
-// Minimal shape of Finnhub trade messages we care about
-type FinnhubTradeMsg = {
-  type: string;
-  data?: Array<{ s: string; p: number; t: number }>;
-};
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function isClientSymbolsMsg(value: unknown): value is ClientSymbolsMsg {
+  if (!value || typeof value !== 'object') return false;
+
+  const msg = value as { type?: unknown; symbols?: unknown };
+  const isKnownType =
+    msg.type === 'subscribe' ||
+    msg.type === 'unsubscribe' ||
+    msg.type === 'set';
+
+  return isKnownType && Array.isArray(msg.symbols) && msg.symbols.every((s) => typeof s === 'string');
+}
 
 // --- Exported helpers ---
 export function isFinnhubLive() {
@@ -133,22 +145,23 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
     } catch {}
 
     client.on('message', (raw) => {
-      let msg: any;
+      let msg: unknown;
       try { msg = JSON.parse(raw.toString()); } catch { return; }
+      if (!isClientSymbolsMsg(msg)) return;
 
-      if (msg?.type === 'subscribe' && Array.isArray(msg.symbols)) {
+      if (msg.type === 'subscribe') {
         const set = clientSubs.get(client) ?? new Set<string>();
         uniqNorm(msg.symbols).forEach((s) => set.add(s));
         clientSubs.set(client, set);
       }
 
-      if (msg?.type === 'unsubscribe' && Array.isArray(msg.symbols)) {
+      if (msg.type === 'unsubscribe') {
         const set = clientSubs.get(client) ?? new Set<string>();
         uniqNorm(msg.symbols).forEach((s) => set.delete(s));
         clientSubs.set(client, set);
       }
 
-      if (msg?.type === 'set' && Array.isArray(msg.symbols)) {
+      if (msg.type === 'set') {
         clientSubs.set(client, new Set(uniqNorm(msg.symbols)));
       }
     });
@@ -210,8 +223,8 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
             }
           } catch {}
 
-        } catch (e: any) {
-          console.error('watchdog fallback failed:', e?.message || e);
+        } catch (e: unknown) {
+          console.error('watchdog fallback failed:', errorMessage(e));
         }
       })
     );
@@ -235,9 +248,9 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
       try {
         const accounts = await AccountModel.find({ favorites: { $exists: true, $ne: [] } })
           .select('favorites')
-          .lean();
+          .lean<Pick<IAccount, 'favorites'>[]>();
 
-        const allFavs = accounts.flatMap((a: any) => uniqNorm(a.favorites ?? []));
+        const allFavs = accounts.flatMap((a) => uniqNorm(a.favorites ?? []));
         const unique = Array.from(new Set(allFavs));
 
         unique.forEach((symbol) => {
