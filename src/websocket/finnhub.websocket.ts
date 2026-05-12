@@ -175,7 +175,7 @@ export function attachFinnhubAndClientWS(server: HttpServer) {
   });
 
   function broadcast(symbol: string, price: number, time: number, source: 'finnhub' | 'binance') {
-    const payload = JSON.stringify({ symbol, price, time, source });
+    const payload = JSON.stringify({ symbol, price, ts: time, time, source });
 
     wss.clients.forEach((c: WebSocket) => {
       if (c.readyState !== WebSocket.OPEN) return;

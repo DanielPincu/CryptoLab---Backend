@@ -1,29 +1,25 @@
-import { latestPrices } from '../../websocket/finnhub.websocket';
-
-function required(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing required env var: ${name}`);
-  return v;
-}
-
-
-// ---- Live quote from Finnhub WS (in-memory snapshot) ----
+// ---- Live quote from Binance REST ----
 export async function getQuote(symbol: string) {
   const clean = String(symbol).replace(/^BINANCE:/i, '').toUpperCase().trim();
 
-  // ---- Try WebSocket live price first ----
-  const tick = latestPrices.get(clean);
+  const url =
+    `https://api.binance.com/api/v3/ticker/24hr` +
+    `?symbol=${encodeURIComponent(clean)}`;
 
-  if (tick) {
-    return {
-      symbol: `BINANCE:${clean}`,
-      price: tick.price,
-      ts: tick.marketTimestamp,
-      source: tick.source
-    };
+  const r = await fetch(url);
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(`Binance API error: ${text}`);
   }
 
-  throw new Error('No live price available for symbol');
+  const data = (await r.json()) as { lastPrice: string; closeTime: number };
+
+  return {
+    symbol: `BINANCE:${clean}`,
+    price: Number(data.lastPrice),
+    ts: data.closeTime,
+    source: 'binance'
+  };
 }
 
 // ---- History from Binance REST ----

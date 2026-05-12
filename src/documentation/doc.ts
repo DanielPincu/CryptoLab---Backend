@@ -3,6 +3,7 @@ import { OpenAPIV3 } from 'openapi-types'
 import { healthPaths } from './paths/health.paths'
 import { authPaths } from './paths/auth.paths'
 import { accountPaths } from './paths/account.paths'
+import { marketPaths } from './paths/market.paths'
 import { transactionsPaths } from './paths/transactions.paths'
 import { tradePaths } from './paths/trade.paths'
 import { positionsPaths } from './paths/positions.paths'
@@ -14,6 +15,7 @@ import { gamePaths } from './paths/game.paths'
 import { commonSchemas } from './schemas/common.schemas'
 import { authSchemas } from './schemas/auth.schemas'
 import { accountSchemas } from './schemas/account.schemas'
+import { marketSchemas } from './schemas/market.schemas'
 import { transactionsSchemas } from './schemas/transactions.schemas'
 import { tradeSchemas } from './schemas/trade.schemas'
 import { positionsSchemas } from './schemas/positions.schemas'
@@ -46,6 +48,7 @@ export const swaggerSpec: OpenAPIV3.Document = {
       ...commonSchemas,
       ...authSchemas,
       ...accountSchemas,
+      ...marketSchemas,
       ...transactionsSchemas,
       ...tradeSchemas,
       ...positionsSchemas,
@@ -59,6 +62,7 @@ export const swaggerSpec: OpenAPIV3.Document = {
     ...healthPaths,
     ...authPaths,
     ...accountPaths,
+    ...marketPaths,
     ...transactionsPaths,
     ...tradePaths,
     ...positionsPaths,
@@ -71,6 +75,7 @@ export const swaggerSpec: OpenAPIV3.Document = {
     { name: 'Health', description: 'Health endpoints' },
     { name: 'Auth', description: 'Authentication endpoints' },
     { name: 'Account', description: 'Account endpoints' },
+    { name: 'Market', description: 'Market data endpoints' },
     { name: 'Transactions', description: 'Transactions endpoints' },
     { name: 'Trade', description: 'Trade execution endpoints' },
     { name: 'Positions', description: 'Open positions endpoints' },

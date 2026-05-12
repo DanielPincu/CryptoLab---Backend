@@ -31,7 +31,9 @@ export async function getLatest(req: Request, res: Response) {
       const tick = latestPrices.get(symbol);
       return {
         symbol,
-        price: typeof tick?.price === 'number' ? tick.price : null
+        price: typeof tick?.price === 'number' ? tick.price : null,
+        ts: typeof tick?.marketTimestamp === 'number' ? tick.marketTimestamp : null,
+        source: tick?.source ?? null
       };
     });
 
@@ -78,7 +80,9 @@ export async function getLatestBySymbol(req: Request, res: Response) {
 
     const result: IMarketTick = {
       symbol,
-      price: typeof tick.price === 'number' ? tick.price : null
+      price: typeof tick.price === 'number' ? tick.price : null,
+      ts: typeof tick.marketTimestamp === 'number' ? tick.marketTimestamp : null,
+      source: tick.source
     };
 
     res.json(result);
