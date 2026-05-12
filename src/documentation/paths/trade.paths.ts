@@ -43,6 +43,14 @@ export const tradePaths: OpenAPIV3.PathsObject = {
                   qty: 0.005,
                 },
               },
+              sellWithAmountUSD: {
+                summary: 'Sell using USD amount',
+                value: {
+                  symbol: 'BTCUSDT',
+                  side: 'SELL',
+                  amountUSD: 500,
+                },
+              },
               sellAll: {
                 summary: 'Sell entire position',
                 value: {

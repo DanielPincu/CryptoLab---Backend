@@ -25,7 +25,7 @@ export const tradeSchemas: Record<string, OpenAPIV3.SchemaObject> = {
       amountUSD: {
         type: 'number',
         example: 1000,
-        description: 'USD amount to trade instead of qty.',
+        description: 'USD amount to buy or sell instead of qty.',
       },
       sellAll: {
         type: 'boolean',
