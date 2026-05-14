@@ -5,7 +5,7 @@ export const marketPaths: OpenAPIV3.PathsObject = {
     get: {
       tags: ['Market'],
       summary: 'Get latest prices for favorite symbols',
-      description: 'Returns the latest in-memory prices received from the Finnhub WebSocket for the authenticated user favorite symbols.',
+      description: 'Returns the latest prices received from the Finnhub WebSocket for the authenticated user favorite symbols.',
       responses: {
         200: {
           description: 'Latest prices fetched successfully',
@@ -51,7 +51,7 @@ export const marketPaths: OpenAPIV3.PathsObject = {
     get: {
       tags: ['Market'],
       summary: 'Get latest price for one favorite symbol',
-      description: 'Returns the latest in-memory price received from the Finnhub WebSocket for one authenticated user favorite symbol.',
+      description: 'Returns the latest price received from the Finnhub WebSocket for one authenticated user favorite symbol.',
       parameters: [
         {
           name: 'symbol',

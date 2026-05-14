@@ -29,6 +29,18 @@ export const authPaths: OpenAPIV3.PathsObject = {
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/AuthResponse' },
+              examples: {
+                default: {
+                  summary: 'Register response',
+                  value: {
+                    user: {
+                      id: '69c28e794897f1f06595701a',
+                      username: 'UFO',
+                      email: 'yo8ufo@gmail.com',
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -71,6 +83,18 @@ export const authPaths: OpenAPIV3.PathsObject = {
           content: {
             'application/json': {
               schema: { $ref: '#/components/schemas/AuthResponse' },
+              examples: {
+                default: {
+                  summary: 'Login response',
+                  value: {
+                    user: {
+                      id: '69c28e794897f1f06595701a',
+                      username: 'UFO',
+                      email: 'yo8ufo@gmail.com',
+                    },
+                  },
+                },
+              },
             },
           },
         },

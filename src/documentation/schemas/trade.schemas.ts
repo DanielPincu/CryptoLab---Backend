@@ -47,14 +47,75 @@ export const tradeSchemas: Record<string, OpenAPIV3.SchemaObject> = {
 
   TradeResponse: {
     type: 'object',
+    required: ['symbol', 'side', 'qty', 'price'],
     properties: {
-      message: {
+      symbol: {
         type: 'string',
-        example: 'Trade executed successfully',
+        example: 'BTCUSDT',
       },
-      transaction: {
-        $ref: '#/components/schemas/Transaction',
+      side: {
+        type: 'string',
+        enum: ['BUY', 'SELL'],
+        example: 'BUY',
       },
+      qty: {
+        type: 'number',
+        example: 0.00012522,
+      },
+      price: {
+        type: 'number',
+        example: 79858,
+      },
+      reward: {
+        type: 'number',
+        example: 0,
+        description: 'Reward amount returned for SELL trades.',
+      },
+    },
+    example: {
+      symbol: 'BTCUSDT',
+      side: 'BUY',
+      qty: 0.00012522,
+      price: 79858,
+    },
+  },
+
+  BuyTradeResponse: {
+    type: 'object',
+    required: ['symbol', 'side', 'qty', 'price'],
+    properties: {
+      symbol: { type: 'string', example: 'BTCUSDT' },
+      side: { type: 'string', enum: ['BUY'], example: 'BUY' },
+      qty: { type: 'number', example: 0.00012522 },
+      price: { type: 'number', example: 79858 },
+    },
+    example: {
+      symbol: 'BTCUSDT',
+      side: 'BUY',
+      qty: 0.00012522,
+      price: 79858,
+    },
+  },
+
+  SellTradeResponse: {
+    type: 'object',
+    required: ['symbol', 'side', 'qty', 'price', 'reward'],
+    properties: {
+      symbol: { type: 'string', example: 'BTCUSDT' },
+      side: { type: 'string', enum: ['SELL'], example: 'SELL' },
+      qty: { type: 'number', example: 63.89597353 },
+      price: { type: 'number', example: 0.3528 },
+      reward: {
+        type: 'number',
+        example: 0,
+      },
+    },
+    example: {
+      symbol: 'BTCUSDT',
+      side: 'SELL',
+      qty: 63.89597353,
+      price: 0.3528,
+      reward: 0,
     },
   },
 }

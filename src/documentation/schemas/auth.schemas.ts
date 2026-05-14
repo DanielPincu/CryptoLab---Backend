@@ -3,9 +3,11 @@ import { OpenAPIV3 } from 'openapi-types'
 export const authSchemas: Record<string, OpenAPIV3.SchemaObject> = {
   User: {
     type: 'object',
+    required: ['id', 'username', 'email'],
     properties: {
-      _id: { type: 'string', example: '69bbb06679639a0cccfb6931' },
-      email: { type: 'string', example: 'daniel@example.com' },
+      id: { type: 'string', example: '69c28e794897f1f06595701a' },
+      username: { type: 'string', example: 'UFO' },
+      email: { type: 'string', example: 'yo8ufo@gmail.com' },
     },
   },
 
@@ -32,6 +34,13 @@ export const authSchemas: Record<string, OpenAPIV3.SchemaObject> = {
     type: 'object',
     properties: {
       user: { $ref: '#/components/schemas/User' },
+    },
+    example: {
+      user: {
+        id: '69c28e794897f1f06595701a',
+        username: 'UFO',
+        email: 'yo8ufo@gmail.com',
+      },
     },
   },
 }

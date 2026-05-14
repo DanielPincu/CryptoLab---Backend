@@ -68,7 +68,33 @@ export const tradePaths: OpenAPIV3.PathsObject = {
           description: 'Trade executed successfully',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/TradeResponse' },
+              schema: {
+                oneOf: [
+                  { $ref: '#/components/schemas/BuyTradeResponse' },
+                  { $ref: '#/components/schemas/SellTradeResponse' },
+                ],
+              },
+              examples: {
+                buy: {
+                  summary: 'BUY response',
+                  value: {
+                    symbol: 'BTCUSDT',
+                    side: 'BUY',
+                    qty: 0.00012522,
+                    price: 79858,
+                  },
+                },
+                sell: {
+                  summary: 'SELL response',
+                  value: {
+                    symbol: 'BTCUSDT',
+                    side: 'SELL',
+                    qty: 63.89597353,
+                    price: 0.3528,
+                    reward: 0,
+                  },
+                },
+              },
             },
           },
         },

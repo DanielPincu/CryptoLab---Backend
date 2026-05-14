@@ -9,7 +9,7 @@ export const marketSchemas: Record<string, OpenAPIV3.SchemaObject> = {
         type: 'number',
         nullable: true,
         example: 67342.15,
-        description: 'Latest in-memory Finnhub WebSocket price. Null when no tick has been received yet.',
+        description: 'Latest Finnhub WebSocket price. Null when no tick has been received yet.',
       },
       ts: {
         type: 'number',
